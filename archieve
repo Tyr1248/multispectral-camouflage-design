@@ -1,0 +1,22 @@
+smart_camouflage/
+├── main.py
+├── requirements.txt
+├── config.yaml
+├── core/
+│   ├── __init__.py
+│   ├── color_processing.py
+│   ├── image_analysis.py
+│   ├── design_generation.py
+│   ├── spectrum_calculation.py
+│   └── visualization.py
+├── ui/
+│   ├── __init__.py
+│   ├── main_window.py
+│   ├── step_windows.py
+│   ├── result_windows.py
+│   └── widgets.py
+└── utils/
+    ├── __init__.py
+    ├── file_handlers.py
+    ├── config.py
+    └── helpers.py
