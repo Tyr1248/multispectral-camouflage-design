@@ -79,36 +79,30 @@ MATLAB toolbox for quantitative evaluation of camouflage effectiveness, combinin
 
 ```
 camo_evaluation/
-├── gbvs.m / gbvs_fast.m      # GBVS saliency (main entry)
-├── ittikochmap.m              # Itti-Koch saliency map
-├── makeGBVSParams.m           # GBVS parameter configuration
-├── saliency_cal.m             # Saliency calculation wrapper
-├── compute_avg_ssim_psnr.m    # Batch SSIM/PSNR evaluation
-├── replace_squares.m          # Patch replacement for camouflage testing
-├── Mark_with_redbound.m       # Mark evaluation regions
-├── solid_color.m              # Solid color baseline
-├── CCE/                       # Camouflage Comprehensive Evaluation module
-├── saltoolbox/                # Saliency Toolbox (adapted from Dirk Walther)
-├── util/                      # Feature maps and helper functions
-├── compile/                   # MEX compilation support
-├── demo/                      # Demonstrations
-└── samplepics/                # Sample images
+├── CCE/                         # Camouflage Comprehensive Evaluation (Li et al. 2025)
+├── saliency_cal.m               # Region-based saliency statistics
+├── compute_avg_ssim_psnr.m      # Batch SSIM/PSNR evaluation
+├── replace_squares.m            # Patch replacement for camouflage testing
+├── batch_crop_white_borders.m   # Batch white-border cropping
+├── cut_sample.m                 # Sample cutting
+├── Mark_with_redbound.m         # Mark evaluation regions
+└── solid_color.m                # Solid color baseline
 ```
 
-### References
+### GBVS Dependency
 
-The GBVS implementation is based on:
+The saliency evaluation workflow relies on pre-computed saliency maps from the **Graph-Based Visual Saliency (GBVS)** algorithm. GBVS source code is **not included** in this repository. Download it separately from:
 
-> J. Harel, C. Koch, and P. Perona. "Graph-Based Visual Saliency." *Advances in Neural Information Processing Systems (NIPS)*, 19:545–552, 2006.
+- [http://www.klab.caltech.edu/~harel/share/gbvs.php](http://www.klab.caltech.edu/~harel/share/gbvs.php)
 
-Source code obtained from: [http://www.klab.caltech.edu/~harel/share/gbvs.php](http://www.klab.caltech.edu/~harel/share/gbvs.php)
+See `camo_evaluation/README.md` for setup instructions.
 
-The Saliency Toolbox (`saltoolbox/`) is adapted from Dirk Walther: [http://www.saliencytoolbox.net](http://www.saliencytoolbox.net)
+**Reference:** J. Harel, C. Koch, and P. Perona. "Graph-Based Visual Saliency." *NIPS*, 19:545–552, 2006.
 
 ### Dependencies
 
 - MATLAB (with Image Processing Toolbox)
-- MEX compiler (for certain optimized routines; run `gbvs_compile` if needed)
+- GBVS toolbox (downloaded separately)
 
 ---
 
@@ -177,11 +171,10 @@ The vectorized TMM physics engine (`tmm_fast/`) is adapted from:
 
 ### GBVS — Graph-Based Visual Saliency
 
-The camouflage evaluation module (`camo_evaluation/`) incorporates:
+The saliency evaluation workflow uses GBVS as an external dependency (not bundled):
 
 - J. Harel, C. Koch, and P. Perona. "Graph-Based Visual Saliency." *NIPS* 2006.
-- Source code: [http://www.klab.caltech.edu/~harel/share/gbvs.php](http://www.klab.caltech.edu/~harel/share/gbvs.php)
-- Saliency Toolbox adapted from Dirk Walther: [http://www.saliencytoolbox.net](http://www.saliencytoolbox.net)
+- Download: [http://www.klab.caltech.edu/~harel/share/gbvs.php](http://www.klab.caltech.edu/~harel/share/gbvs.php)
 
 ### CCE — Camouflage Comprehensive Evaluation
 
@@ -191,4 +184,8 @@ The camouflage evaluation module (`camo_evaluation/`) incorporates:
 
 ## License
 
-This project is provided for research and academic use. Please refer to the individual third-party components for their respective licenses.
+This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+
+Third-party components retain their original licenses:
+- `tmm_fast/` and `gym_multilayerthinfilm/` — MIT License (adapted from [sbyrnes321/tmm](https://github.com/sbyrnes321/tmm))
+- GBVS (external dependency, not bundled) — contact authors at [http://www.klab.caltech.edu/~harel/share/gbvs.php](http://www.klab.caltech.edu/~harel/share/gbvs.php)
