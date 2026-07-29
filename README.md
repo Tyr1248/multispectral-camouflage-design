@@ -32,7 +32,6 @@ cGAN-based inverse design of multilayer thin-film optical coatings, coupled with
 
 ```
 ├── main.py                   # GUI entry point
-├── full_pipeline_run.py      # CLI full pipeline
 ├── config.yaml               # Global configuration
 ├── improved__cGAN.py          # cGAN network definition
 ├── Lab_regressor.py           # Lab color regression model
@@ -58,7 +57,6 @@ cGAN-based inverse design of multilayer thin-film optical coatings, coupled with
 
 ```bash
 python main.py                 # GUI
-python full_pipeline_run.py    # CLI full pipeline
 ```
 
 ---
