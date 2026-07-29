@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it as below."
+title: "Multispectral Camouflage Design to Camouflage Pattern"
+version: 1.0.0
+date-released: 2026-07-29
+url: "https://github.com/Tyr1248/multispectral-camouflage-design"
+repository-code: "https://github.com/Tyr1248/multispectral-camouflage-design"
+license: MIT
+type: software
+keywords:
+  - multispectral camouflage
+  - thin-film optics
+  - transfer matrix method
+  - NSGA-II
+  - cGAN
+  - inverse design
+  - infrared emissivity
+  - visual saliency
+  - camouflage evaluation
