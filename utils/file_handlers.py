@@ -11,18 +11,45 @@ from datetime import datetime
 from PIL import Image
 
 
+def _to_jsonable(obj, max_array_size=1000):
+    """
+    递归转换为 JSON/YAML 可序列化的 Python 原生类型
+
+    - numpy 标量转 int/float/bool
+    - 小型 numpy 数组转 list
+    - 大型数组（如图案图像）只保留形状信息，避免 JSON 爆炸
+    """
+    if isinstance(obj, dict):
+        return {str(k): _to_jsonable(v, max_array_size) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_to_jsonable(v, max_array_size) for v in obj]
+    if isinstance(obj, np.ndarray):
+        if obj.size > max_array_size:
+            return {'__ndarray__': True, 'shape': list(obj.shape), 'dtype': str(obj.dtype)}
+        return obj.tolist()
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    return obj
+
+
 def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
     """
     保存设计结果
 
     输入:
         design_params: dict - 设计参数字典
-        spectrum_data: dict - 光谱数据字典
-        pattern_image: np.array 或 None - 迷彩图案图像数组
+        spectrum_data: dict - 光谱数据字典，
+            结构为 {'wavelengths': [...], 'colors': {color_key: {...}}}
+        pattern_image: np.array / dict / None - 迷彩图案，
+            可传 {'amorphous': arr, 'crystalline': arr} 同时保存两种状态
         save_dir: str - 保存目录路径
 
     输出:
-        file_paths: dict - 保存的所有文件路径
+        file_paths: dict - 保存的所有文件路径；失败返回 {}
     """
     # 确保目录存在
     ensure_directory(save_dir)
@@ -34,46 +61,99 @@ def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
     file_paths = {}
 
     try:
-        # 1. 保存设计参数为JSON
+        # 1. 保存设计参数为JSON（自动处理 numpy 类型，剔除大型图像数组）
         design_file = os.path.join(save_dir, f"{design_id}_params.json")
         with open(design_file, 'w', encoding='utf-8') as f:
-            json.dump(design_params, f, ensure_ascii=False, indent=2)
+            json.dump(_to_jsonable(design_params), f, ensure_ascii=False, indent=2)
         file_paths['design_json'] = design_file
 
-        # 2. 保存光谱数据为CSV
-        if spectrum_data and 'wavelengths' in spectrum_data and 'reflectance' in spectrum_data:
+        # 2. 保存光谱数据为CSV（匹配实际数据结构: wavelengths + colors）
+        if spectrum_data and 'wavelengths' in spectrum_data and 'colors' in spectrum_data:
+            wavelengths = spectrum_data['wavelengths']
+            colors = spectrum_data.get('colors', {})
+            color_keys = sorted(colors.keys())
+
             spectrum_file = os.path.join(save_dir, f"{design_id}_spectrum.csv")
             with open(spectrum_file, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                writer.writerow(['wavelength_nm', 'reflectance', 'absorption', 'transmittance'])
+                header = ['wavelength_nm']
+                for key in color_keys:
+                    header.append(f"{key}_amorphous_emissivity")
+                    header.append(f"{key}_crystalline_emissivity")
+                writer.writerow(header)
 
-                wavelengths = spectrum_data['wavelengths']
-                reflectance = spectrum_data.get('reflectance', [])
-                absorption = spectrum_data.get('absorption', [])
-                transmittance = spectrum_data.get('transmittance', [])
-
-                for i in range(len(wavelengths)):
-                    ref = reflectance[i] if i < len(reflectance) else 0
-                    abs_val = absorption[i] if i < len(absorption) else 0
-                    trans = transmittance[i] if i < len(transmittance) else 0
-                    writer.writerow([wavelengths[i], ref, abs_val, trans])
+                for i, wl in enumerate(wavelengths):
+                    row = [wl]
+                    for key in color_keys:
+                        color_data = colors[key]
+                        for state in ('amorphous', 'crystalline'):
+                            emiss = color_data.get(state, {}).get('emissivity', [])
+                            # emissivity 结构为 [[逐波长值...]]（每个solution一行），取第一个
+                            if emiss and len(emiss) > 0 and i < len(emiss[0]):
+                                row.append(emiss[0][i])
+                            else:
+                                row.append('')
+                    writer.writerow(row)
 
             file_paths['spectrum_csv'] = spectrum_file
 
-        # 3. 保存图案图像
-        if pattern_image is not None and isinstance(pattern_image, np.ndarray):
-            pattern_file = os.path.join(save_dir, f"{design_id}_pattern.png")
-            img = Image.fromarray(pattern_image.astype('uint8'))
-            img.save(pattern_file)
-            file_paths['pattern_image'] = pattern_file
+            # 2b. 保存光谱曲线图 PNG
+            try:
+                import matplotlib
+                matplotlib.use('Agg')
+                from matplotlib import pyplot as plt
 
-        # 4. 生成并保存预览图像
+                fig, ax = plt.subplots(figsize=(10, 6), dpi=150)
+                ax.axvspan(3000, 5000, alpha=0.15, color='lightcoral', label='3-5 μm')
+                ax.axvspan(5000, 8000, alpha=0.15, color='lightgreen', label='5-8 μm')
+                ax.axvspan(8000, 14000, alpha=0.15, color='lightblue', label='8-14 μm')
+                for key in color_keys:
+                    color_data = colors[key]
+                    amorphous_emiss = color_data.get('amorphous', {}).get('emissivity', [])
+                    crystalline_emiss = color_data.get('crystalline', {}).get('emissivity', [])
+                    if amorphous_emiss and len(amorphous_emiss) > 0:
+                        ax.plot(wavelengths, amorphous_emiss[0], '--', label=f"{key} Amorphous")
+                    if crystalline_emiss and len(crystalline_emiss) > 0:
+                        ax.plot(wavelengths, crystalline_emiss[0], '-', label=f"{key} Crystalline")
+                ax.set_xlim(wavelengths[0], wavelengths[-1])
+                ax.set_ylim(0, 1)
+                ax.set_xlabel("Wavelength (nm)")
+                ax.set_ylabel("Emissivity")
+                ax.set_title("Infrared Emissivity Spectrum (3-14 μm)")
+                ax.legend(fontsize=8)
+                ax.grid(True, alpha=0.3)
+                fig.tight_layout()
+
+                spectrum_png = os.path.join(save_dir, f"{design_id}_spectrum.png")
+                fig.savefig(spectrum_png, bbox_inches="tight")
+                plt.close(fig)
+                file_paths['spectrum_png'] = spectrum_png
+            except Exception as e:
+                print(f"保存光谱图失败: {e}")
+
+        # 3. 保存图案图像（支持同时保存非晶态和晶态）
+        patterns = {}
+        if isinstance(pattern_image, dict):
+            patterns = {k: v for k, v in pattern_image.items() if isinstance(v, np.ndarray)}
+        elif isinstance(pattern_image, np.ndarray):
+            patterns = {'amorphous': pattern_image}
+
+        for state, pattern_arr in patterns.items():
+            try:
+                pattern_file = os.path.join(save_dir, f"{design_id}_pattern_{state}.png")
+                img = Image.fromarray(pattern_arr.astype('uint8'))
+                img.save(pattern_file)
+                file_paths[f'pattern_{state}'] = pattern_file
+            except Exception as e:
+                print(f"保存{state}图案失败: {e}")
+
+        # 4. 生成并保存预览图像（非晶态/晶态上下对比，保持宽高比，无损PNG）
         try:
             from core.visualization import generate_design_preview
-            preview = generate_design_preview(design_params, pattern_image, size=(800, 600))
-            preview_file = os.path.join(save_dir, f"{design_id}_preview.jpg")
+            preview = generate_design_preview(design_params, patterns, size=(1080, 1240))
+            preview_file = os.path.join(save_dir, f"{design_id}_preview.png")
             img = Image.fromarray(preview.astype('uint8'))
-            img.save(preview_file, quality=90)
+            img.save(preview_file)
             file_paths['preview_image'] = preview_file
         except Exception as e:
             print(f"生成预览图像失败: {e}")
@@ -82,12 +162,8 @@ def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
         summary = {
             'design_id': design_id,
             'timestamp': timestamp,
-            'design_params': design_params,
+            'design_params': _to_jsonable(design_params),
             'file_paths': file_paths,
-            'spectrum_summary': {
-                'avg_reflectance': spectrum_data.get('avg_reflectance', 0) if spectrum_data else 0,
-                'stealth_score': spectrum_data.get('stealth_score', 0) if spectrum_data else 0,
-            } if spectrum_data else {}
         }
 
         summary_file = os.path.join(save_dir, f"{design_id}_summary.yaml")
@@ -102,6 +178,8 @@ def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
 
     except Exception as e:
         print(f"保存设计结果时出错: {e}")
+        import traceback
+        traceback.print_exc()
         return {}
 
 

@@ -14,8 +14,38 @@ build/
 *.swp
 *.swo
 
-# Model checkpoints (large files — uncomment if you want to exclude)
-# *.pth
+# Model weights & normalization parameters (not open-sourced)
+*.pth
+*.pt
+*.ckpt
+*.npy
+*.npz
+
+# Datasets / image assets (not open-sourced)
+demo_images/
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.tif
+*.tiff
+*.gif
+
+# Training outputs
+training/logs/
+training/weight/
+training/weights_*/
+
+# Generated outputs & temp media
+results/
+debug.log
+*.mp4
+*.mov
+*.ogg
+*.ass
+/_comparison.png
+/_make_bgm.py
+/demo_subtitles_en.md
 
 # Config / secrets
 *.local.yaml

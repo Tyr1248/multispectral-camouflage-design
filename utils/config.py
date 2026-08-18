@@ -37,7 +37,7 @@ def load_app_config(config_file=None):
             if key not in config:
                 config[key] = value
 
-        print(f"配置文件加载成功: {config_file}")
+        print(f"Configuration file loaded: {config_file}")
         return config
 
     except Exception as e:

@@ -4,6 +4,7 @@
 包含所有原始功能逻辑，无省略。
 """
 
+import time
 import traceback
 import numpy as np
 from PyQt5.QtCore import QTimer, Qt
@@ -13,6 +14,9 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                              QSpinBox, QGroupBox, QComboBox, QDoubleSpinBox)
 from .result_windows import ImageClusterWindow, ColorInputWindow, Step4Window
 from .widgets import DynamicResultsWindow, StaticResultsWindow, ColorConverter
+from .window_utils import apply_main_geometry
+from .worker import run_with_progress
+from utils.helpers import safe_flush_stdout, get_default_dir, get_image_dir
 
 
 class Step1Window(QWidget):
@@ -150,8 +154,9 @@ class Step1Window(QWidget):
         layout.addStretch()
         self.setLayout(layout)
 
-        # 窗口自适应
+        # 统一窗口尺寸并居中
         self.adjustSize()
+        apply_main_geometry(self)
 
     def toggle_image_type_options(self, checked):
         """切换图像类型选项的显示状态"""
@@ -231,7 +236,7 @@ class Step1Window(QWidget):
 
     def select_single_image(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Image", "", "Image Files (*.png *.jpg *.bmp *.jpeg)"
+            self, "Select Image", get_image_dir(), "Image Files (*.png *.jpg *.bmp *.jpeg)"
         )
         if file_path:
             self.single_image_label.setText(f"Selected: {file_path}")
@@ -241,7 +246,7 @@ class Step1Window(QWidget):
 
     def select_image_for_slot(self, slot_index, label_widget):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, f"Select Image {slot_index + 1}", "", "Image Files (*.png *.jpg *.bmp *.jpeg)"
+            self, f"Select Image {slot_index + 1}", get_image_dir(), "Image Files (*.png *.jpg *.bmp *.jpeg)"
         )
         if file_path:
             display = f"...{file_path[-30:]}" if len(file_path) > 30 else file_path
@@ -266,13 +271,21 @@ class Step1Window(QWidget):
                 if not self.image_paths:
                     QMessageBox.warning(self, "Warning", "Please select an image first")
                     return
-                try:
-                    colors = self.extract_dominant_colors(self.image_paths[0])
+                def work(report, worker):
+                    report(-1, "Extracting dominant colors from image...")
+                    return self.extract_dominant_colors(self.image_paths[0])
+
+                def on_success(colors):
                     self.cluster_window = ImageClusterWindow(colors, parent=self)
                     self.cluster_window.show()
                     self.open_step2()
-                except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Color extraction failed: {str(e)}")
+
+                def on_error(err):
+                    QMessageBox.critical(self, "Error", f"Color extraction failed: {err}")
+
+                run_with_progress(self, "Color Extraction",
+                                  "Extracting dominant colors from image...",
+                                  work, on_success, on_error)
             elif self.multiple_images_radio.isChecked():
                 self.image_type = 'multiple'
                 selected_paths = []
@@ -297,11 +310,14 @@ class Step1Window(QWidget):
                         return
 
                 self.image_paths = selected_paths
-                try:
-                    all_colors = []
+
+                def work(report, worker):
+                    report(-1, f"Extracting dominant colors from {len(selected_paths)} images...")
                     colors = self.extract_dominant_colors(selected_paths)
-                    all_colors.extend(colors)
-                    unique_colors = self.remove_similar_colors(all_colors, threshold=30)
+                    report(-1, "Removing similar colors...")
+                    return self.remove_similar_colors(list(colors), threshold=30)
+
+                def on_success(unique_colors):
                     if not unique_colors:
                         QMessageBox.warning(self, "Warning", "No valid colors extracted")
                         return
@@ -312,8 +328,13 @@ class Step1Window(QWidget):
                     )
                     self.cluster_window.show()
                     self.open_step2()
-                except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Color extraction failed: {str(e)}")
+
+                def on_error(err):
+                    QMessageBox.critical(self, "Error", f"Color extraction failed: {err}")
+
+                run_with_progress(self, "Color Extraction",
+                                  "Extracting dominant colors...",
+                                  work, on_success, on_error)
 
         elif self.color_radio.isChecked():
             self.input_type = 'color'
@@ -432,6 +453,7 @@ class Step2Window(QWidget):
         layout.addStretch()
         self.setLayout(layout)
         self.adjustSize()
+        apply_main_geometry(self)
 
     def set_design_type(self):
         if self.dynamic_radio.isChecked():
@@ -568,6 +590,7 @@ class Step3Window(QWidget):
         self.setLayout(self.main_layout)
 
         self.adjustSize()
+        apply_main_geometry(self)
 
     def update_status(self):
         status_text = f"Colors: {self.color_count} | Type: {'Dynamic' if self.design_type == 'dynamic' else 'Static'}"
@@ -583,33 +606,29 @@ class Step3Window(QWidget):
         self.clustering_method = method
 
     def generate_designs(self):
-        try:
-            self.generate_btn.setEnabled(False)
-            self.generate_btn.setText("Generating...")
-            self.progress_label.setText("Processing...")
-            self.progress_label.setVisible(True)
-            QTimer.singleShot(10, self.generate_designs_delayed)
-        except Exception as e:
-            print(f"Generate failed: {e}")
-            self.show_error(f"Operation failed: {str(e)}")
+        """在后台线程中执行设计生成，主线程显示进度对话框"""
+        colors = self.color_groups
+        if not colors:
+            self.show_error("No valid color data")
+            return
 
-    def generate_designs_delayed(self):
-        try:
-            colors = self.color_groups
-            if not colors:
-                self.show_error("No valid color data")
-                self.reset_generate_btn()
-                return
+        self.generate_btn.setEnabled(False)
+        self.generate_btn.setText("Generating...")
+        self.progress_label.setText("Processing...")
+        self.progress_label.setVisible(True)
 
-            self.all_design_results = []
-            self.selected_designs = []
+        self._design_start = time.perf_counter()
+        total = len(colors)
+        design_type = self.design_type
 
+        def work(report, worker):
+            results = []
             for i, color_group in enumerate(colors):
+                worker.check_cancel()
+                report(int(i * 100 / total), f"Processing color {i + 1}/{total}...")
+                target_rgb = color_group['values']
                 try:
-                    self.progress_label.setText(f"Processing color {i + 1}/{len(colors)}...")
-                    target_rgb = color_group['values']
-
-                    if self.design_type == 'dynamic':
+                    if design_type == 'dynamic':
                         result = self.generate_dynamic_design_single(target_rgb)
                     else:
                         result = self.generate_static_design_single(target_rgb)
@@ -617,15 +636,20 @@ class Step3Window(QWidget):
                     if result:
                         result['color_index'] = i
                         result['target_rgb'] = target_rgb
-                        self.all_design_results.append(result)
-
-                    QTimer.singleShot(0, lambda: None)
+                        results.append(result)
                 except Exception as e:
                     print(f"Color {i + 1} failed: {e}")
-                    self.progress_label.setText(f"Color {i + 1} failed")
                     continue
+            report(100, "Finalizing...")
+            return results
 
-            if not self.all_design_results:
+        def on_success(results):
+            self.design_elapsed = time.perf_counter() - self._design_start
+            print(f"Design generation took {self.design_elapsed:.1f} s")
+            self.all_design_results = results
+            self.selected_designs = []
+
+            if not results:
                 self.show_error("No design results generated")
                 self.reset_generate_btn()
                 return
@@ -635,10 +659,19 @@ class Step3Window(QWidget):
             else:
                 self.process_static_results()
 
-        except Exception as e:
-            print(f"Generation failed: {e}")
-            self.show_error(f"Generation failed: {str(e)}")
+        def on_error(err):
+            print(f"Generation failed: {err}")
+            self.show_error(f"Generation failed: {err}")
             self.reset_generate_btn()
+
+        def on_cancel():
+            print("Generation cancelled by user")
+            self.reset_generate_btn()
+
+        run_with_progress(self, "Generating Designs",
+                          "Starting generation...",
+                          work, on_success, on_error, on_cancel,
+                          cancellable=True)
 
     def reset_generate_btn(self):
         self.generate_btn.setEnabled(True)
@@ -851,7 +884,7 @@ class Step3Window(QWidget):
         try:
             import sys
             print("[DEBUG] Step3Window.dynamic_results_confirmed called")
-            sys.stdout.flush()
+            safe_flush_stdout()
             self.selected_designs = selected_designs
             self.open_step4()
         except Exception as e:
@@ -873,16 +906,16 @@ class Step3Window(QWidget):
         try:
             import sys
             print("[DEBUG] Step3Window.open_step4 called")
-            sys.stdout.flush()
+            safe_flush_stdout()
             self.hide()
             print("[DEBUG] Step3Window hidden")
-            sys.stdout.flush()
+            safe_flush_stdout()
             self.step4_window = Step4Window(self)
             print("[DEBUG] Step4Window instance created")
-            sys.stdout.flush()
+            safe_flush_stdout()
             self.step4_window.show()
             print("[DEBUG] Step4Window.show() executed")
-            sys.stdout.flush()
+            safe_flush_stdout()
         except Exception as e:
             import traceback
             error_msg = traceback.format_exc()

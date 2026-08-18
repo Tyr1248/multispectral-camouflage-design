@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                              QLabel, QPushButton, QMessageBox)
 from PyQt5.QtCore import Qt
 from .step_windows import Step1Window
+from .window_utils import apply_main_geometry
 from utils.config import load_app_config, save_app_state
 
 class MainWindow(QMainWindow):
@@ -18,7 +19,7 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         self.setWindowTitle("Intelligent Camouflage Design System")
-        self.setGeometry(100, 100, 900, 50)  # 窗口高度调整为约一半
+        apply_main_geometry(self)  # 统一主窗口尺寸并居中
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)

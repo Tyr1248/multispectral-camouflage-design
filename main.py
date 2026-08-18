@@ -64,7 +64,7 @@ def setup_chinese_fonts():
 
     # 打印当前使用的字体
     current_font = matplotlib.rcParams.get('font.sans-serif', ['unknown'])[0]
-    print(f"Matplotlib字体设置: {current_font}")
+    print(f"Matplotlib font set to: {current_font}")
 
     return font_candidates[0] if font_candidates else None
 
@@ -95,7 +95,7 @@ def main():
         # 创建字体
         font = QFont(chinese_font, 10)
         app.setFont(font)
-        print(f"Qt应用程序字体设置为: {chinese_font}")
+        print(f"Qt application font set to: {chinese_font}")
     else:
         # 尝试设置默认中文字体
         default_fonts = ['Microsoft YaHei', 'SimHei', 'Arial Unicode MS']
@@ -103,7 +103,7 @@ def main():
             font = QFont(font_name, 10)
             if font.exactMatch():
                 app.setFont(font)
-                print(f"Qt应用程序字体设置为: {font_name}")
+                print(f"Qt application font set to: {font_name}")
                 break
 
     # 创建并显示主窗口

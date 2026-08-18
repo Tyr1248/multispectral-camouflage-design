@@ -5,7 +5,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import random
 
 
@@ -132,78 +132,91 @@ def plot_spectrum_comparison(spectrum_data, reference_data=None, title="光谱�
     return fig
 
 
-def generate_design_preview(design_params, pattern_image=None, size=(400, 300), include_params=True):
+def generate_design_preview(design_params, pattern_image=None, size=(800, 600), include_params=True):
     """
-    生成设计预览图
+    生成设计预览图（非晶态/晶态迷彩上下对比）
 
     输入:
         design_params: dict - 设计参数
-        pattern_image: np.array - 迷彩图案（可选）
+        pattern_image: np.array 或 dict - 迷彩图案；
+            可传 {'amorphous': arr, 'crystalline': arr} 生成双状态对比图
         size: tuple - 预览图尺寸
-        include_params: bool - 是否包含参数文本
+        include_params: bool - 是否在底部附加参数文本
 
     输出:
         np.array - 设计预览图像
     """
     width, height = size
 
-    # 创建PIL图像
+    # 归一化图案输入：支持单数组或 {'amorphous':..., 'crystalline':...} 字典
+    patterns = {}
+    if isinstance(pattern_image, dict):
+        patterns = {k: v for k, v in pattern_image.items() if isinstance(v, np.ndarray)}
+    elif isinstance(pattern_image, np.ndarray):
+        patterns = {'amorphous': pattern_image}
+
     img = Image.new('RGB', (width, height), color=(240, 240, 240))
     draw = ImageDraw.Draw(img)
 
-    # 如果有图案图像，将其添加到预览中
-    if pattern_image is not None and isinstance(pattern_image, np.ndarray):
-        pattern_img = Image.fromarray(pattern_image)
-        pattern_img = pattern_img.resize((width, int(height * 0.6)))
-        img.paste(pattern_img, (0, 0))
-        text_y_start = pattern_img.height + 10
+    try:
+        font = ImageFont.load_default()
+    except Exception:
+        font = None
+
+    ordered = [(k, lbl) for k, lbl in
+               [('amorphous', 'Amorphous State'), ('crystalline', 'Crystalline State')]
+               if k in patterns]
+
+    if ordered:
+        # 底部预留参数文本区域
+        footer_h = 46 if include_params else 0
+        label_h = 30
+        n = len(ordered)
+        block_h = max(1, (height - footer_h) // n)
+
+        y = 0
+        for key, label in ordered:
+            pattern_arr = patterns[key]
+            pattern_img = Image.fromarray(pattern_arr.astype('uint8')).convert('RGB')
+
+            # 保持原始宽高比缩放到区域内（contain），水平居中，不拉伸变形
+            region_h = max(1, block_h - label_h)
+            pw, ph = pattern_img.size
+            scale = min(width / pw, region_h / ph)
+            new_w = max(1, int(pw * scale))
+            new_h = max(1, int(ph * scale))
+            pattern_img = pattern_img.resize((new_w, new_h), Image.LANCZOS)
+            x_offset = (width - new_w) // 2
+
+            # 标签条
+            draw.rectangle([0, y, width, y + label_h], fill=(52, 73, 94))
+            draw.text((10, y + 7), label, fill=(255, 255, 255), font=font)
+            img.paste(pattern_img, (x_offset, y + label_h))
+            y += block_h
+
+        # 底部参数文本（使用英文，避免默认字体无法渲染中文）
+        if include_params:
+            lines = []
+            design_type = design_params.get('design_type', 'N/A')
+            lines.append(f"Design type: {design_type}")
+            design_time = design_params.get('design_time_seconds')
+            if design_time is not None:
+                lines.append(f"Design time: {design_time:.1f} s")
+            for i, line in enumerate(lines):
+                draw.text((10, height - footer_h + 6 + i * 18), line,
+                          fill=(30, 30, 30), font=font)
     else:
-        # 绘制颜色块
+        # 无图案时回退：绘制颜色块
         colors = design_params.get('amorphous_colors', []) + design_params.get('crystalline_colors', [])
         if colors:
             color_block_width = width // min(len(colors), 5)
             for i, color in enumerate(colors[:5]):
                 if len(color) >= 3:
-                    r, g, b = color[:3]
+                    r, g, b = int(color[0]), int(color[1]), int(color[2])
                 else:
                     r, g, b = 128, 128, 128
-
                 x_start = i * color_block_width
                 x_end = (i + 1) * color_block_width
                 draw.rectangle([x_start, 0, x_end, 100], fill=(r, g, b))
 
-        text_y_start = 110
-
-    # 如果包含参数，添加文本信息
-    if include_params and text_y_start < height - 50:
-        try:
-            font = ImageFont.load_default()
-
-            lines = []
-
-            # 设计类型
-            design_type = design_params.get('design_type', '未知')
-            lines.append(f"设计类型: {design_type}")
-
-            # 厚度和折射率
-            thickness = design_params.get('thickness', 'N/A')
-            refractive_index = design_params.get('refractive_index', 'N/A')
-            lines.append(f"厚度: {thickness}nm, 折射率: {refractive_index}")
-
-            # 颜色组信息
-            amorphous_count = len(design_params.get('amorphous_colors', []))
-            crystalline_count = len(design_params.get('crystalline_colors', []))
-            if amorphous_count or crystalline_count:
-                lines.append(f"颜色组: {amorphous_count}非晶态 + {crystalline_count}晶态")
-
-            # 绘制文本
-            for i, line in enumerate(lines):
-                y_pos = text_y_start + i * 20
-                if y_pos < height - 20:
-                    draw.text((10, y_pos), line, fill=(0, 0, 0), font=font)
-
-        except Exception as e:
-            print(f"生成预览文本时出错: {e}")
-
-    # 转换为numpy数组
     return np.array(img)

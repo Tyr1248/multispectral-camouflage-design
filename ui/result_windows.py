@@ -2,6 +2,7 @@
 结果相关窗口 - 最终简化版，仅保留必要控件，窗口1280x800，字体放大
 """
 import sys
+import time
 import traceback
 
 import numpy as np
@@ -14,6 +15,9 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap, QColor, QBrush, QFont
 from .widgets import ResultWindow, DynamicResultsWindow, StaticResultsWindow, ColorConverter
+from .window_utils import apply_main_geometry, apply_popup_geometry
+from .worker import run_with_progress
+from utils.helpers import safe_flush_stdout, get_default_dir, get_image_dir
 
 
 class ImageClusterWindow(QWidget):
@@ -90,6 +94,9 @@ class ImageClusterWindow(QWidget):
 
         self.setLayout(layout)
 
+        # 确认弹窗：独立尺寸并居中
+        apply_popup_geometry(self)
+
     def create_color_block(self, color, index):
         widget = QWidget()
         layout = QVBoxLayout()
@@ -132,14 +139,14 @@ class ColorInputWindow(QWidget):
         super().__init__()
         self.parent_window = parent
         self.color_space = "RGB"
-        self.color_groups = []
+        self.color_groups = [None]  # 与下拉框初始的 "Group 1" 一一对应
         self.current_group = 0
         self.input_container = None
         self.init_ui()
 
     def init_ui(self):
         self.setWindowTitle("Color Input")
-        self.setGeometry(200, 200, 1280, 800)
+        apply_popup_geometry(self)  # 弹窗独立尺寸并居中
 
         layout = QVBoxLayout()
         layout.setSpacing(25)
@@ -262,14 +269,15 @@ class ColorInputWindow(QWidget):
     def add_color_group(self):
         current_color = self.get_current_input_values()
         if current_color:
-            if len(self.color_groups) > self.current_group:
-                self.color_groups[self.current_group] = current_color
-            else:
-                self.color_groups.append(current_color)
+            # 保存当前组的输入（防御索引越界）
+            while len(self.color_groups) <= self.current_group:
+                self.color_groups.append(None)
+            self.color_groups[self.current_group] = current_color
 
         self.color_groups.append(None)
-        self.group_combo.addItem(f"Group {len(self.color_groups)}")
-        self.group_combo.setCurrentIndex(len(self.color_groups) - 1)
+        # 编号始终跟随下拉框实际项数，避免重复编号
+        self.group_combo.addItem(f"Group {self.group_combo.count() + 1}")
+        self.group_combo.setCurrentIndex(self.group_combo.count() - 1)
         self.clear_input_fields()
         self.update_groups_info()
 
@@ -278,9 +286,12 @@ class ColorInputWindow(QWidget):
             return
         del self.color_groups[self.current_group]
         self.group_combo.removeItem(self.current_group)
+        # 删除后重新编号，保证 Group 1..N 连续无重复
+        for i in range(self.group_combo.count()):
+            self.group_combo.setItemText(i, f"Group {i + 1}")
         if self.current_group >= len(self.color_groups):
             self.current_group = len(self.color_groups) - 1
-            self.group_combo.setCurrentIndex(self.current_group)
+        self.group_combo.setCurrentIndex(self.current_group)
         if self.color_groups:
             self.load_color_to_inputs(self.color_groups[self.current_group])
         self.update_groups_info()
@@ -366,7 +377,7 @@ class Step4Window(QWidget):
     def __init__(self, prev_window):
         try:
             print("[DEBUG] Step4Window.__init__ started")
-            sys.stdout.flush()
+            safe_flush_stdout()
 
             super().__init__()
             self.prev_window = prev_window
@@ -380,12 +391,12 @@ class Step4Window(QWidget):
             self.generate_camouflage = True
 
             print("[DEBUG] Step4Window.__init__ calling init_ui")
-            sys.stdout.flush()
+            safe_flush_stdout()
             self.init_ui()
             self.update_status()
             self.init_budget_table()
             print("[DEBUG] Step4Window.__init__ completed")
-            sys.stdout.flush()
+            safe_flush_stdout()
 
         except Exception as e:
             error_msg = traceback.format_exc()
@@ -397,11 +408,10 @@ class Step4Window(QWidget):
     def init_ui(self):
         try:
             print("[DEBUG] Step4Window.init_ui started")
-            sys.stdout.flush()
+            safe_flush_stdout()
 
             self.setWindowTitle("Step 4: Final Confirmation")
-            self.setGeometry(200, 200, 1000, 600)
-            self.setMinimumWidth(800)
+            apply_main_geometry(self)  # 统一主窗口尺寸并居中
 
             self.setStyleSheet("""
                 QLabel { font-size: 18px; }
@@ -505,7 +515,7 @@ class Step4Window(QWidget):
             QTimer.singleShot(50, self.update_status)
 
             print("[DEBUG] Step4Window.init_ui completed")
-            sys.stdout.flush()
+            safe_flush_stdout()
 
         except Exception as e:
             error_msg = traceback.format_exc()
@@ -717,10 +727,12 @@ class Step4Window(QWidget):
         layout.setSpacing(8)
 
         sol_type = solution.get('solution_type', 'unknown')
-        type_display = self.translate_solution_type(sol_type)
         cluster_id = solution.get('cluster_id')
-        if cluster_id is not None:
-            type_display += f" (Cluster {cluster_id+1})"
+        # 簇最优解需要显示真实的簇编号；其余类型不带簇后缀
+        if sol_type == 'cluster_best' and cluster_id is not None and cluster_id >= 0:
+            type_display = f"Cluster Best (Cluster {cluster_id + 1})"
+        else:
+            type_display = self.translate_solution_type(sol_type)
 
         type_label = QLabel(f"Solution {index+1}: {type_display}")
         type_label.setStyleSheet("font-weight: bold; color: #0066cc; font-size: 22px;")  # 标题继续放大
@@ -764,10 +776,12 @@ class Step4Window(QWidget):
     def translate_solution_type(self, sol_type):
         mapping = {
             'multilayer': 'Cluster Solution',
-            'global_best': 'Global Optimal',
+            'cluster_best': 'Cluster Best',
+            'global_best': 'Global Best',
+            'max_deltaED': 'Max ΔED',
             'deltaE_max': 'ΔE Max Solution',
         }
-        return mapping.get(sol_type, sol_type.capitalize())
+        return mapping.get(sol_type, sol_type.replace('_', ' ').title())
 
     def clear_layout(self, layout):
         if layout is not None:
@@ -781,7 +795,7 @@ class Step4Window(QWidget):
     def select_environment(self):
         try:
             file_path, _ = QFileDialog.getOpenFileName(
-                self, "Select Environment Image", "",
+                self, "Select Environment Image", get_image_dir(),
                 "Image Files (*.png *.jpg *.jpeg *.bmp *.tiff *.tif);;All Files (*.*)"
             )
             if file_path:
@@ -827,15 +841,12 @@ class Step4Window(QWidget):
             QMessageBox.warning(self, "Warning", f"Failed to select environment image: {str(e)}")
 
     def generate_result(self):
+        """在后台线程中生成最终结果（光谱预计算 + 迷彩生成），主线程显示进度"""
         try:
-            self.result_btn.setEnabled(False)
-            self.result_btn.setText("Generating...")
             budget = self.get_current_budget()
             total = sum(budget)
             if total == 0:
                 QMessageBox.warning(self, "Warning", "Budget sum cannot be zero")
-                self.result_btn.setEnabled(True)
-                self.result_btn.setText("Generate Final Results")
                 return
             budget_normalized = [b / total for b in budget]
             design_params = {
@@ -843,47 +854,79 @@ class Step4Window(QWidget):
                 'selected_designs': self.selected_designs,
                 'budget': budget_normalized
             }
-            QTimer.singleShot(10, lambda: self.generate_result_delayed(design_params))
+
+            self.result_btn.setEnabled(False)
+            self.result_btn.setText("Generating...")
+            self._result_start = time.perf_counter()
+
+            selected_designs = self.selected_designs
+
+            def work(report, worker):
+                # 预先计算红外光谱，避免结果窗口打开光谱页时主线程卡顿
+                spectrum_data = {}
+                try:
+                    report(-1, "Computing infrared spectra (TMM)...")
+                    from core.spectrum_calculation import calculate_all_spectra
+                    spectrum_data = calculate_all_spectra(
+                        selected_designs,
+                        wavelength_range=(3000, 14000, 10)  # 3-14um
+                    )
+                except Exception as e:
+                    print(f"Spectrum pre-calculation failed: {e}")
+                    spectrum_data = {}
+
+                report(-1, "Generating camouflage pattern...")
+                result_data = self.generate_design_result(design_params)
+                if result_data is not None:
+                    result_data['spectrum_results'] = spectrum_data
+                return result_data
+
+            def on_success(result_data):
+                self.result_btn.setEnabled(True)
+                self.result_btn.setText("Generate Final Results")
+
+                if result_data:
+                    # 总设计时长 = Step3 设计生成耗时 + Step4 结果生成耗时
+                    result_elapsed = time.perf_counter() - self._result_start
+                    step3_elapsed = getattr(self.prev_window, 'design_elapsed', 0)
+                    result_data['design_time_seconds'] = round(step3_elapsed + result_elapsed, 2)
+                    print(f"Total design time: {result_data['design_time_seconds']:.1f} s")
+
+                    main_window = None
+                    try:
+                        curr = self.prev_window
+                        for _ in range(5):
+                            if hasattr(curr, 'main_window'):
+                                main_window = curr.main_window
+                                break
+                            elif hasattr(curr, 'prev_window'):
+                                curr = curr.prev_window
+                            else:
+                                break
+                    except Exception:
+                        main_window = None
+
+                    self.result_window = ResultWindow(result_data, main_window)
+                    self.result_window.show()
+                    self.hide()
+                else:
+                    QMessageBox.warning(self, "Warning", "No design results generated")
+
+            def on_error(err):
+                print(f"Generate result failed: {err}")
+                self.result_btn.setEnabled(True)
+                self.result_btn.setText("Generate Final Results")
+                QMessageBox.critical(self, "Error", f"Failed to generate results: {err}")
+
+            run_with_progress(self, "Generating Final Results",
+                              "Preparing...",
+                              work, on_success, on_error)
+
         except Exception as e:
             print(f"Generate result failed: {e}")
             self.result_btn.setEnabled(True)
             self.result_btn.setText("Generate Final Results")
             QMessageBox.critical(self, "Error", f"Failed to start generation: {str(e)}")
-
-    def generate_result_delayed(self, design_params):
-        try:
-            result_data = self.generate_design_result(design_params)
-            self.result_btn.setEnabled(True)
-            self.result_btn.setText("Generate Final Results")
-
-            if result_data:
-                from .result_windows import ResultWindow
-                main_window = None
-                try:
-                    curr = self.prev_window
-                    for _ in range(5):
-                        if hasattr(curr, 'main_window'):
-                            main_window = curr.main_window
-                            break
-                        elif hasattr(curr, 'prev_window'):
-                            curr = curr.prev_window
-                        else:
-                            break
-                except:
-                    main_window = None
-
-                self.result_window = ResultWindow(result_data, main_window)
-                self.result_window.show()
-                self.hide()
-            else:
-                QMessageBox.warning(self, "Warning", "No design results generated")
-        except Exception as e:
-            print(f"Generate result delayed failed: {e}")
-            import traceback
-            traceback.print_exc()
-            self.result_btn.setEnabled(True)
-            self.result_btn.setText("Generate Final Results")
-            QMessageBox.critical(self, "Error", f"Failed to generate results: {str(e)}")
 
     def generate_design_result(self, design_params):
         try:
@@ -1008,14 +1051,11 @@ class Step4Window(QWidget):
                 return None
 
         except ImportError as e:
+            # 注意：此函数在后台线程中执行，不能创建 Qt 控件，错误信息打印到控制台
             print(f"Import camouflage module failed: {e}")
-            QMessageBox.critical(self, "Module Missing",
-                                 f"Cannot import camouflage generation module: {e}\n\nPlease ensure all dependencies are installed.")
             return None
         except Exception as e:
             print(f"Generate camouflage pattern failed: {e}")
             import traceback
             traceback.print_exc()
-            QMessageBox.critical(self, "Generation Failed",
-                                 f"Camouflage pattern generation failed: {str(e)}\n\nPlease check input data.")
             return None

@@ -22,16 +22,21 @@ def calculate_all_spectra(designs_data, wavelength_range=(3000, 15000, 1), mater
     # 生成波长数组（单位：纳米）
     wavelengths_nm = np.arange(wl_start, wl_end + wl_step, wl_step)
 
-    # 固定材料列表结构
+    # 固定材料列表结构（前4层为结构色层，第3层为GST）
+    # 红外基底采用 D1 结构（Ge/ZnS 严格交替、Ge 打头，共14层，见补充材料 Table S2），
+    # 最下方为熔石英基底（D1 本身不包含基底）
     materials_base = ["ZnS", "aSi", "", "SiO2",
-                      "Ge", "Al2O3", "TiO2", "Al2O3",
-                      "Ge", "ZnS", "Al2O3", "Ge",
-                      "Al2O3", "Fusedsilica"]
+                      "Ge", "ZnS", "Ge", "ZnS",
+                      "Ge", "ZnS", "Ge", "ZnS",
+                      "Ge", "ZnS", "Ge", "ZnS",
+                      "Ge", "ZnS", "Fusedsilica"]
 
     # 固定厚度（从第5层开始，即索引4及以后）
+    # D1 结构厚度 (nm): 578.4/973.6/734.0/489.2/836.6/469.6/851.8/482.5/809.7/1173.1/716.9/1192.5/668.9/688.5
     fixed_thicknesses = torch.tensor([
-        654.4, 569.6, 480.8, 516.9, 615.7,
-        677.0, 622.1, 792.7, 998.0, 2000000
+        578.4, 973.6, 734.0, 489.2, 836.6, 469.6, 851.8,
+        482.5, 809.7, 1173.1, 716.9, 1192.5, 668.9, 688.5,
+        2000000
     ], dtype=torch.float64)
 
     # 获取波长对应的材料光学常数
@@ -110,11 +115,9 @@ def calculate_all_spectra(designs_data, wavelength_range=(3000, 15000, 1), mater
         # 提取反射率和透射率
         R_TE = result_te["R"][:, 0, :]  # 形状: [S, W]
         R_TM = result_tm["R"][:, 0, :]  # 形状: [S, W]
-        T_TE = result_te["T"][:, 0, :]  # 形状: [S, W]
-        T_TM = result_tm["T"][:, 0, :]  # 形状: [S, W]
 
-        # 计算发射率: 1 - 反射率 - 透射率
-        emissivity = 1 - (R_TE + R_TM) / 2 - (T_TE + T_TM) / 2
+        # 计算发射率: 1 - 反射率（TE/TM 偏振平均）
+        emissivity = 1 - (R_TE + R_TM) / 2
 
         return emissivity.cpu().numpy()
 

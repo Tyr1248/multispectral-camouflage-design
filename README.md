@@ -4,6 +4,14 @@ A comprehensive pipeline for on-demand multispectral camouflage design: from env
 
 ---
 
+## Demo
+
+<video src="https://github.com/Tyr1248/multispectral-camouflage-design/releases/download/demo/demo_video_final.mp4" controls muted></video>
+
+If the video does not play inline, [watch / download it here](https://github.com/Tyr1248/multispectral-camouflage-design/releases/download/demo/demo_video_final.mp4).
+
+---
+
 ## Project Overview
 
 This repository integrates three major components:
@@ -33,21 +41,31 @@ cGAN-based inverse design of multilayer thin-film optical coatings, coupled with
 ```
 ├── main.py                   # GUI entry point
 ├── config.yaml               # Global configuration
-├── improved__cGAN.py          # cGAN network definition
+├── cGAN.py                    # cGAN network definition
 ├── Lab_regressor.py           # Lab color regression model
 ├── model_utils.py             # Model loading utilities
 ├── core/                      # Core engine
 ├── tmm_fast/                  # Vectorized TMM physics engine
 ├── color_calculate/           # Color science (CMF, illuminants, transforms)
 ├── Cluster_extraction/        # Clustering (KHM, color features)
-├── Camo/                      # Camouflage pattern generation & spot database
+├── Camo/                      # Camouflage pattern generation
 ├── ui/                        # PyQt5 GUI (wizard, results windows)
 ├── utils/                     # Utilities (config, file handling)
-├── spot_database/             # Spot pattern image database
-├── parameters_new/            # Model normalization parameters
-├── 11.14_best_model_normalized.pth    # Lab regressor weights
-└── generator_epoch100000_20251122_093538.pth  # cGAN generator weights
+├── training/                  # cGAN training code + original dataset (see training/README.md)
+├── models/                    # ← place model weights here (empty; see models/README.md)
+├── parameters/                # ← place normalization parameters here (empty; see parameters/README.md)
+└── spot_database/             # ← place spot pattern images here (empty; see spot_database/README.md)
 ```
+
+### Data & Model Weights
+
+The following runtime assets are **not included** in this repository (the corresponding folders are kept as empty placeholders with instructions inside):
+
+- **Model weights** (`models/`) — cGAN generator + pre-trained Lab regressor (`*.pth`)
+- **Normalization parameters** (`parameters/`) — `y_mean.npy` / `y_std.npy`
+- **Spot pattern database** (`spot_database/`) — binary spot PNGs for digital camouflage rendering; no generation script is included, please randomly generate them as needed
+
+The **training code and original dataset** for the cGAN model are provided in [`training/`](training/README.md), so you can train your own weights. Alternatively, contact the authors to request the pre-trained assets.
 
 ### Dependencies
 
@@ -56,7 +74,7 @@ cGAN-based inverse design of multilayer thin-film optical coatings, coupled with
 ### Usage
 
 ```bash
-python main.py                 # GUI
+python main.py                 # GUI (requires the assets above to be in place)
 ```
 
 ---

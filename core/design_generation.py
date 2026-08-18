@@ -12,16 +12,16 @@ warnings.filterwarnings('ignore')
 # ================================
 # 🏗️ 设计过程整合
 # ================================
-def load_design_model(generator_path="generator_epoch100000_20251122_093538.pth",
-                      y_mean_path="parameters_new/y_mean.npy",
-                      y_std_path="parameters_new/y_std.npy"):
+def load_design_model(generator_path="models/generator.pth",
+                      y_mean_path="parameters/y_mean.npy",
+                      y_std_path="parameters/y_std.npy"):
     """
     加载生成器模型和归一化参数
     """
     # 注意：这里假设您有这些模块
     # 如果您在实际运行时遇到导入错误，请根据实际情况调整
     try:
-        from improved__cGAN import Generator
+        from cGAN import Generator
         from model_utils import load_model
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

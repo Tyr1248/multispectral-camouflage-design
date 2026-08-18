@@ -4,8 +4,45 @@
 
 import os
 import random
+import sys
 import numpy as np
 from datetime import datetime
+
+
+def get_default_dir():
+    """
+    文件对话框的默认目录：项目根目录（main.py 所在目录）
+
+    无论从何处启动，打开/保存对话框都默认定位到项目自身目录，
+    避免暴露用户私人路径。
+    """
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def get_image_dir():
+    """
+    图像选择对话框的默认目录：项目根目录下的 demo_images 文件夹
+
+    专门用于存放演示/输入图像；不存在时自动创建。
+    """
+    image_dir = os.path.join(get_default_dir(), 'demo_images')
+    os.makedirs(image_dir, exist_ok=True)
+    return image_dir
+
+
+def safe_flush_stdout():
+    """
+    安全地刷新标准输出
+
+    在无控制台环境（如 pythonw 或 detached 进程）中，
+    sys.stdout 可能为 None 或其底层句柄已失效，
+    直接调用 flush() 会抛出 OSError/ValueError。
+    """
+    try:
+        if sys.stdout is not None:
+            sys.stdout.flush()
+    except (OSError, ValueError, AttributeError):
+        pass
 
 
 def normalize_color_values(values, color_space):

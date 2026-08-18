@@ -2,6 +2,7 @@
 自定义控件模块 - 最终简化版，仅保留必要控件，窗口1280x800，字体放大
 包含动态结果窗口、静态结果窗口和最终结果窗口
 """
+import os
 import numpy as np
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QPushButton, QCheckBox,
@@ -9,7 +10,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                              QTabWidget, QApplication, QMessageBox,
                              QTableWidget, QTableWidgetItem, QHeaderView,
                              QRadioButton, QButtonGroup, QComboBox, QTextEdit,
-                             QGridLayout, QSizePolicy)
+                             QGridLayout, QSizePolicy, QFileDialog)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPixmap, QColor, QImage, QFont, QBrush, QPainter, QPen
 import matplotlib
@@ -19,6 +20,8 @@ import re
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+
+from .window_utils import apply_main_geometry
 
 # 尝试导入colour-science库，如果失败则使用备用方案
 try:
@@ -630,9 +633,8 @@ class DynamicResultsWindow(QWidget):
 
         self.setLayout(layout)
 
-        # 窗口自适应
-        self.adjustSize()
-        self.setMinimumSize(1000, 600)
+        # 统一窗口尺寸并居中
+        apply_main_geometry(self)
 
     def create_color_tab(self, color_idx, solutions):
         """为单个颜色创建选项卡页面"""
@@ -975,6 +977,7 @@ class DynamicResultsWindow(QWidget):
                         crystalline_rgb = ColorConverter.lab_to_rgb(crystalline_lab)
                         simplified_solutions.append({
                             'solution_type': sol.get('solution_type', 'unknown'),
+                            'cluster_id': sol.get('cluster_id', -1),
                             'thickness': sol.get('thickness', []),
                             'pred_rgb_amorphous': amorphous_rgb,
                             'pred_rgb_crystalline': crystalline_rgb,
@@ -1122,9 +1125,8 @@ class StaticResultsWindow(QWidget):
 
         self.setLayout(layout)
 
-        # 窗口自适应
-        self.adjustSize()
-        self.setMinimumSize(1000, 600)
+        # 统一窗口尺寸并居中
+        apply_main_geometry(self)
 
     def create_color_tab(self, color_idx, design):
         """为单个颜色创建选项卡页面"""
@@ -1395,7 +1397,6 @@ class ResultWindow(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("Final Results")
-        self.setMinimumSize(900, 600)  # 宽度减小，高度自适应
 
         # 全局样式 - 按Step1Window字体体系放大
         self.setStyleSheet("""
@@ -1464,6 +1465,7 @@ class ResultWindow(QWidget):
         layout.addLayout(button_layout)
         self.setLayout(layout)
         self.adjustSize()
+        apply_main_geometry(self)
 
     def create_summary_tab(self):
         """摘要选项卡：显示核心统计和颜色对比"""
@@ -1493,6 +1495,9 @@ class ResultWindow(QWidget):
                       f"Solutions: {solutions_count}\n"
                       f"Avg ΔE: {avg_deltaE:.3f}\n"
                       f"Avg ΔED: {avg_deltaED:.3f}")
+        design_time = self.design_params.get('design_time_seconds')
+        if design_time is not None:
+            stats_text += f"\nDesign time: {design_time:.1f} s"
         stats_label = QLabel(stats_text)
         stats_label.setStyleSheet("font-size: 22px; padding: 15px; background-color: #e8f4fd; border-radius: 8px;")
         stats_label.setAlignment(Qt.AlignCenter)
@@ -1711,26 +1716,39 @@ class ResultWindow(QWidget):
         return tab
 
     def save_results(self):
-        """保存结果（保持原有逻辑）"""
+        """保存结果：用户选择目录，保存参数/光谱/双态图案/预览/汇总"""
         try:
             from utils.file_handlers import save_design_results
+            from utils.helpers import get_default_dir
+
+            default_dir = os.path.join(get_default_dir(), "results")
+            save_dir = QFileDialog.getExistingDirectory(
+                self, "Choose Save Directory", default_dir
+            )
+            if not save_dir:
+                return
+
             spectrum_data = self.design_params.get('spectrum_results', {})
-            pattern_image = self.design_params.get('amorphous_pattern')
+            patterns = {
+                'amorphous': self.design_params.get('amorphous_pattern'),
+                'crystalline': self.design_params.get('crystalline_pattern'),
+            }
             save_path = save_design_results(
                 self.design_params,
                 spectrum_data,
-                pattern_image,
-                "./results"
+                patterns,
+                save_dir
             )
             if save_path:
+                file_list = "\n".join(f"• {p}" for p in save_path.values())
                 QMessageBox.information(
                     self,
                     "Save Successful",
-                    f"Results saved to {list(save_path.values())[0]}",
+                    f"Saved {len(save_path)} file(s) to:\n{save_dir}\n\n{file_list}",
                     QMessageBox.Ok
                 )
             else:
-                QMessageBox.warning(self, "Save Failed", "Cannot save results.")
+                QMessageBox.warning(self, "Save Failed", "Cannot save results. Check console output for details.")
         except Exception as e:
             QMessageBox.critical(self, "Save Failed", f"Error: {str(e)}")
 
