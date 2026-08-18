@@ -30,6 +30,7 @@ demo_images/
 *.tif
 *.tiff
 *.gif
+*.svg
 
 # Training outputs
 training/logs/
