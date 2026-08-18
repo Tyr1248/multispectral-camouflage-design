@@ -1,5 +1,5 @@
 """
-颜色处理功能 - 修改支持可变颜色数量输出
+Color processing utilities - modified to support a variable number of output colors
 """
 
 import random
@@ -14,24 +14,24 @@ except ImportError:
 
 def extract_dominant_colors(image_path, n_colors=None, color_space='RGB'):
     """
-    从图像中提取主要颜色及其权重
+    Extract dominant colors and their weights from an image
 
-    输入:
-        image_path: str - 图像文件路径
-        n_colors: int - 要提取的颜色数量（None表示由聚类算法决定）
-        color_space: str - 颜色空间 ('RGB', 'Lab', 'XYZ')
+    Args:
+        image_path: str - path to the image file
+        n_colors: int - number of colors to extract (None lets the clustering algorithm decide)
+        color_space: str - color space ('RGB', 'Lab', 'XYZ')
 
-    输出:
+    Returns:
         tuple: (colors, weights)
-            colors: list of RGB tuples [(R,G,B), ...] - 颜色列表
-            weights: list of float - 对应颜色的权重（占比或代表性权重）
+            colors: list of RGB tuples [(R,G,B), ...] - extracted colors
+            weights: list of float - weight of each color (area fraction or representativeness)
     """
     from Cluster_extraction.extract_color_features import ColorFeatureExtractor
     extractor = ColorFeatureExtractor(
-        n_colors=4,  # 提取4种颜色
-        show_progress=True  # 显示进度信息
+        n_colors=4,  # extract 4 colors
+        show_progress=True  # show progress information
     )
-    result = extractor.extract_colors(image_path)[0]  # 单图像结果，格式为 [colors, weights]
+    result = extractor.extract_colors(image_path)[0]  # single-image result, formatted as [colors, weights]
     colors = result[0]
     weights = result[1]
     # print(colors)
@@ -43,24 +43,24 @@ def extract_dominant_colors(image_path, n_colors=None, color_space='RGB'):
 
 def convert_color_space(color, from_space, to_space):
     """
-    颜色空间转换
+    Convert between color spaces
 
-    输入:
-        color: tuple/list - 颜色值
-        from_space: str - 原颜色空间
-        to_space: str - 目标颜色空间
+    Args:
+        color: tuple/list - color values
+        from_space: str - source color space
+        to_space: str - target color space
 
-    输出:
-        tuple - 转换后的颜色值
+    Returns:
+        tuple - converted color values
     """
     if from_space == to_space:
         return tuple(color)
 
     if not COLOUR_SCIENCE_AVAILABLE:
-        # 如果没有colour-science库，使用简化转换
+        # Fall back to the simplified conversion if colour-science is unavailable
         return _simplified_color_conversion(color, from_space, to_space)
 
-    # 使用colour-science库进行转换
+    # Convert using the colour-science library
     try:
         if from_space == 'RGB' and to_space == 'Lab':
             # RGB -> XYZ -> Lab
@@ -79,22 +79,22 @@ def convert_color_space(color, from_space, to_space):
             rgb = XYZ_to_RGB(color, RGB_COLOURSPACE_sRGB)
             return tuple(int(max(0, min(255, c * 255))) for c in rgb)
         else:
-            # 其他转换简化为返回原值
+            # Other conversions fall back to returning the original values
             return tuple(color)
     except Exception:
         return _simplified_color_conversion(color, from_space, to_space)
 
 
 def _simplified_color_conversion(color, from_space, to_space):
-    """简化的颜色空间转换"""
+    """Simplified color space conversion"""
     if from_space == 'RGB' and to_space == 'Lab':
-        # 简化的RGB到Lab转换
+        # Simplified RGB to Lab conversion
         r, g, b = color
         x = 0.4124564 * r + 0.3575761 * g + 0.1804375 * b
         y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b
         z = 0.0193339 * r + 0.1191920 * g + 0.9503041 * b
 
-        # 简化的XYZ到Lab转换
+        # Simplified XYZ to Lab conversion
         x_ref, y_ref, z_ref = 95.047, 100.0, 108.883
         x = x / x_ref
         y = y / y_ref
@@ -114,10 +114,10 @@ def _simplified_color_conversion(color, from_space, to_space):
         return (L, a, b)
 
     elif from_space == 'Lab' and to_space == 'RGB':
-        # 简化的Lab到RGB转换
+        # Simplified Lab to RGB conversion
         L, a, b = color
 
-        # 简化的Lab到XYZ转换
+        # Simplified Lab to XYZ conversion
         fy = (L + 16) / 116
         fx = a / 500 + fy
         fz = fy - b / 200
@@ -134,12 +134,12 @@ def _simplified_color_conversion(color, from_space, to_space):
         y = yr * y_ref
         z = zr * z_ref
 
-        # 简化的XYZ到RGB转换
+        # Simplified XYZ to RGB conversion
         r = 3.2404542 * x - 1.5371385 * y - 0.4985314 * z
         g = -0.9692660 * x + 1.8760108 * y + 0.0415560 * z
         b = 0.0556434 * x - 0.2040259 * y + 1.0572252 * z
 
-        # 限制到0-255范围
+        # Clamp to the 0-255 range
         r = max(0, min(255, int(r)))
         g = max(0, min(255, int(g)))
         b = max(0, min(255, int(b)))
@@ -147,25 +147,25 @@ def _simplified_color_conversion(color, from_space, to_space):
         return (r, g, b)
 
     else:
-        # 其他转换简化为返回原值
+        # Other conversions fall back to returning the original values
         return tuple(color)
 
 
 def validate_color_values(values, color_space):
     """
-    验证颜色值是否在有效范围内
+    Validate that color values are within the valid range
 
-    输入:
-        values: list - 颜色值列表
-        color_space: str - 颜色空间
+    Args:
+        values: list - color values
+        color_space: str - color space
 
-    输出:
-        tuple - (是否有效, 错误信息)
+    Returns:
+        tuple - (is_valid, error_message)
     """
     if len(values) != 3:
         return False, "必须输入3个颜色分量"
 
-    # 定义各颜色空间的范围
+    # Define the valid ranges for each color space
     ranges = {
         'RGB': [(0, 255), (0, 255), (0, 255)],
         'Lab': [(0, 100), (-128, 127), (-128, 127)],
@@ -175,7 +175,7 @@ def validate_color_values(values, color_space):
     if color_space not in ranges:
         return False, f"不支持的颜色空间: {color_space}"
 
-    # 验证每个分量
+    # Validate each component
     for i, (value, (min_val, max_val)) in enumerate(zip(values, ranges[color_space])):
         if not (min_val <= value <= max_val):
             return False, f"第{i+1}个分量超出范围 [{min_val}, {max_val}]"
@@ -185,14 +185,14 @@ def validate_color_values(values, color_space):
 
 def convert_multiple_colors(color_groups, target_space='RGB'):
     """
-    转换多组颜色到目标颜色空间
+    Convert multiple color groups to the target color space
 
-    输入:
-        color_groups: list - 颜色组列表，每个元素为 {'space': str, 'values': list}
-        target_space: str - 目标颜色空间
+    Args:
+        color_groups: list - color groups, each element is {'space': str, 'values': list}
+        target_space: str - target color space
 
-    输出:
-        list - 转换后的颜色组列表
+    Returns:
+        list - converted color groups
     """
     converted_groups = []
 
@@ -200,7 +200,7 @@ def convert_multiple_colors(color_groups, target_space='RGB'):
         if group['space'] == target_space:
             converted_groups.append(group)
         else:
-            # 转换颜色空间
+            # Convert the color space
             converted_color = convert_color_space(group['values'], group['space'], target_space)
             converted_groups.append({
                 'space': target_space,
@@ -212,13 +212,13 @@ def convert_multiple_colors(color_groups, target_space='RGB'):
 
 def validate_multiple_colors(color_groups):
     """
-    验证多组颜色值的有效性
+    Validate multiple color groups
 
-    输入:
-        color_groups: list - 颜色组列表
+    Args:
+        color_groups: list - color groups
 
-    输出:
-        tuple - (是否全部有效, 错误信息列表)
+    Returns:
+        tuple - (all_valid, list of error messages)
     """
     all_valid = True
     error_messages = []

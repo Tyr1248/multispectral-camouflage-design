@@ -1,10 +1,12 @@
-% 替换图像中被掩膜标注的256x256正方形区域为纯色
-% 功能：交互选择原图像和掩膜图像，将掩膜中面积为256*256的白色连通区域替换为用户指定的纯色
-% 结果图像保存为：原文件名_singlecolor.扩展名
+% Replace the 256x256 square regions marked by a mask with a solid color
+% Function: interactively select the original image and a mask image, then
+% replace the white connected regions of area 256*256 in the mask with a
+% user-specified solid color
+% The result is saved as: <original filename>_singlecolor.<extension>
 
 clear; clc; close all;
 
-%% 1. 交互选择原图像和掩膜图像
+%% 1. Interactively select the original image and the mask image
 [orig_file, orig_path] = uigetfile( ...
     {'*.jpg;*.png;*.bmp;*.tif;*.jpeg', '图像文件 (*.jpg,*.png,*.bmp,*.tif,*.jpeg)'; ...
      '*.*', '所有文件 (*.*)'}, ...
@@ -26,45 +28,46 @@ end
 orig_full = fullfile(orig_path, orig_file);
 mask_full = fullfile(mask_path, mask_file);
 
-%% 2. 读取图像
-img_orig = imread(orig_full);   % 原图像
-mask_img = imread(mask_full);   % 掩膜图像
+%% 2. Read the images
+img_orig = imread(orig_full);   % original image
+mask_img = imread(mask_full);   % mask image
 
-% 检查尺寸一致性
+% Check that the sizes match
 if size(img_orig, 1) ~= size(mask_img, 1) || size(img_orig, 2) ~= size(mask_img, 2)
     error('原图像与掩膜图像的分辨率不一致，请检查。');
 end
 
-%% 3. 将掩膜转换为二值逻辑数组
-% 如果掩膜是彩色图，转为灰度；然后二值化
+%% 3. Convert the mask to a binary logical array
+% If the mask is a color image, convert it to grayscale first, then binarize
 if size(mask_img, 3) == 3
     mask_gray = rgb2gray(mask_img);
 else
     mask_gray = mask_img;
 end
-% 假设掩膜中白色区域（接近1）为感兴趣区域，使用阈值0.5进行二值化
+% Assume white regions in the mask (close to 1) are the regions of interest;
+% binarize with a threshold of 0.5
 mask_bw = imbinarize(mask_gray, 0.5);
 
-%% 4. 查找掩膜中的连通区域，并筛选面积为256x256的区域
-cc = bwconncomp(mask_bw);          % 计算连通组件
+%% 4. Find connected regions in the mask and keep those with area 256x256
+cc = bwconncomp(mask_bw);          % compute connected components
 stats = regionprops(cc, 'Area', 'PixelIdxList', 'BoundingBox');
 
-% 目标面积：256*256
+% Target area: 256*256
 target_area = 256 * 256;
 valid_idx = find([stats.Area] == target_area);
 
 if isempty(valid_idx)
     warning('未找到面积为 %d 的正方形区域，将处理所有连通区域。', target_area);
-    valid_idx = 1:length(stats);   % 如果没有符合条件的，则处理所有连通区域
+    valid_idx = 1:length(stats);   % if none qualify, process all connected regions
 else
     fprintf('找到 %d 个面积为 256x256 的区域。\n', length(valid_idx));
 end
 
-%% 5. 交互输入要填充的纯色（RGB值，0-255）
+%% 5. Interactively enter the fill color (RGB values, 0-255)
 prompt = {'红色分量 (0-255):', '绿色分量 (0-255):', '蓝色分量 (0-255):'};
 dlgtitle = '设置填充颜色';
 dims = [1 35];
-definput = {'255', '0', '0'};   % 默认红色
+definput = {'255', '0', '0'};   % default: red
 answer = inputdlg(prompt, dlgtitle, dims, definput);
 
 if isempty(answer)
@@ -72,34 +75,34 @@ if isempty(answer)
     return;
 end
 
-% 将输入字符串转换为数值，并限制在0-255范围内
+% Convert the input strings to numbers and clamp them to the 0-255 range
 r = max(0, min(255, round(str2double(answer{1}))));
 g = max(0, min(255, round(str2double(answer{2}))));
 b = max(0, min(255, round(str2double(answer{3}))));
 color_rgb = [r, g, b];
 
-% 根据原图像的数据类型，将颜色值转换为相应类型
+% Convert the color values to the data type of the original image
 if isa(img_orig, 'uint8')
     color = uint8(color_rgb);
 elseif isa(img_orig, 'uint16')
-    % 对于uint16，通常范围是0-65535，简单映射：乘以257（255*257≈65535）
+    % For uint16 the usual range is 0-65535; simple mapping: multiply by 257 (255*257≈65535)
     color = uint16(color_rgb) * 257;
 elseif isa(img_orig, 'double')
-    % 对于double类型图像，像素值通常在0-1之间
+    % For double images, pixel values are usually in the 0-1 range
     color = double(color_rgb) / 255;
 else
-    % 其他类型（如int16、logical等）可能不常见，直接使用原值
+    % Other types (e.g. int16, logical) are uncommon; use the values as-is
     color = color_rgb;
 end
 
-%% 6. 将原图中对应区域替换为纯色
-img_out = img_orig;   % 复制原图，后续修改
+%% 6. Replace the corresponding regions of the original image with the solid color
+img_out = img_orig;   % copy the original image for modification
 
-% 判断原图像是彩色还是灰度
+% Check whether the original image is color or grayscale
 if size(img_orig, 3) == 3
-    % 彩色图像：分别处理R,G,B三个通道
+    % Color image: process the R, G, B channels separately
     for i = 1:length(valid_idx)
-        idx = stats(valid_idx(i)).PixelIdxList;   % 当前区域的线性索引
+        idx = stats(valid_idx(i)).PixelIdxList;   % linear indices of the current region
         for c = 1:3
             channel = img_out(:,:,c);
             channel(idx) = color(c);
@@ -107,7 +110,7 @@ if size(img_orig, 3) == 3
         end
     end
 else
-    % 灰度图像：使用颜色分量的平均值作为填充灰度值
+    % Grayscale image: use the mean of the color components as the fill gray value
     if isa(img_orig, 'double')
         gray_val = double(mean(color_rgb)) / 255;
     elseif isa(img_orig, 'uint8')
@@ -115,7 +118,7 @@ else
     elseif isa(img_orig, 'uint16')
         gray_val = uint16(round(mean(color_rgb) * 257));
     else
-        gray_val = mean(color_rgb);   % 其他类型直接取均值
+        gray_val = mean(color_rgb);   % other types: take the mean directly
     end
     for i = 1:length(valid_idx)
         idx = stats(valid_idx(i)).PixelIdxList;
@@ -123,7 +126,7 @@ else
     end
 end
 
-%% 7. 保存结果图像
+%% 7. Save the result image
 [~, name, ext] = fileparts(orig_file);
 new_filename = [name, '_singlecolor', ext];
 new_fullpath = fullfile(orig_path, new_filename);
@@ -135,7 +138,7 @@ catch ME
     error('保存图像失败：%s', ME.message);
 end
 
-%% 8. 显示原图和结果对比
+%% 8. Display the original image and the result side by side
 figure('Name', '替换效果对比');
 subplot(1,2,1);
 imshow(img_orig);

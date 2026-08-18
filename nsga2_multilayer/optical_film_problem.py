@@ -6,11 +6,11 @@ from config import OptimizationConfig
 
 
 class OpticalFilmProblem:
-    """光学薄膜优化问题定义
+    """Optical thin-film optimization problem definition
 
-    支持两种模式:
-    - "periodic": Ge/ZnS 交替 (material_bits=1)
-    - "penalty":  8种材料, 层数惩罚 (material_bits=3)
+    Supports two modes:
+    - "periodic": alternating Ge/ZnS (material_bits=1)
+    - "penalty":  8 materials, layer-count penalty (material_bits=3)
     """
 
     def __init__(self, config=None):
@@ -46,10 +46,10 @@ class OpticalFilmProblem:
 
         self.config.validate()
 
-    # ========== 约束检测与修复 ==========
+    # ========== Constraint checking and repair ==========
 
     def check_adjacent_layer_constraint(self, materials):
-        """检查相邻层材料是否相同，返回冲突位置列表"""
+        """Check whether adjacent layers use the same material; returns a list of conflicting positions"""
         conflicts = []
         for i in range(1, len(materials)):
             if materials[i] == materials[i - 1]:
@@ -57,10 +57,10 @@ class OpticalFilmProblem:
         return conflicts
 
     def repair_adjacent_layers(self, materials, thicknesses=None):
-        """修复相邻层材料约束
+        """Repair the adjacent-layer material constraint
 
-        periodic模式: 强制交替Ge/ZnS
-        penalty模式: 随机选择不同于前一层的材料
+        periodic mode: force alternating Ge/ZnS
+        penalty mode: randomly choose a material different from the previous layer
         """
         if len(materials) <= 1:
             return materials.copy(), thicknesses.copy() if thicknesses else None
@@ -80,7 +80,7 @@ class OpticalFilmProblem:
         return repaired_materials, repaired_thicknesses
 
     def repair_adjacent_layers_in_decision(self, decision):
-        """解码 -> 修复材料约束 -> 写回决策变量"""
+        """Decode -> repair the material constraint -> write back into the decision vector"""
         materials, thicknesses = self.decode_solution(decision)
         conflicts = self.check_adjacent_layer_constraint(materials)
         if not conflicts:
@@ -101,10 +101,10 @@ class OpticalFilmProblem:
                     new_dec[start + j] = bit
         return new_dec
 
-    # ========== 层数约束 ==========
+    # ========== Layer-count constraint ==========
 
     def enforce_layer_constraints(self, decision):
-        """强制执行层数约束"""
+        """Enforce the layer-count constraints"""
         new_decision = decision.copy()
         active = self.count_active_layers(new_decision)
 
@@ -147,12 +147,12 @@ class OpticalFilmProblem:
         return new_decision
 
     def _get_material_at_periodic(self, decision, layer_idx):
-        """periodic模式: 获取指定层的材料编码"""
+        """periodic mode: get the material code of the given layer"""
         start = layer_idx * (self.material_bits + 1)
         return int(decision[start] > 0.5)
 
     def _get_material_at_penalty(self, decision, layer_idx):
-        """penalty模式: 获取指定层的材料编码"""
+        """penalty mode: get the material code of the given layer"""
         start = layer_idx * (self.material_bits + 1)
         code = 0
         for j in range(self.material_bits):
@@ -161,7 +161,7 @@ class OpticalFilmProblem:
         return code
 
     def _encode_materials_to_decision(self, decision, materials):
-        """将材料名称列表编码回决策变量 (periodic模式)"""
+        """Encode a list of material names back into the decision vector (periodic mode)"""
         new_dec = decision.copy()
         for i, mat_name in enumerate(materials):
             if i >= self.max_layers:
@@ -171,10 +171,10 @@ class OpticalFilmProblem:
             new_dec[start] = code
         return new_dec
 
-    # ========== 初始化 ==========
+    # ========== Initialization ==========
 
     def create_optical_film_decision(self):
-        """创建满足约束的随机个体"""
+        """Create a random individual that satisfies the constraints"""
         num_layers = random.randint(self.min_layers, self.max_layers)
         decision = np.zeros(self.total_vars)
 
@@ -192,7 +192,7 @@ class OpticalFilmProblem:
                     decision[start + self.material_bits] = random.random()
                     prev_code = new_code
         else:
-            decision[0] = 1  # Ge=4: 二进制100
+            decision[0] = 1  # Ge=4: binary 100
             decision[1] = 0
             decision[2] = 0
             min_thick_norm = (self.config.first_layer_min_thickness - self.thickness_range[0]) / (
@@ -214,10 +214,10 @@ class OpticalFilmProblem:
 
         return decision
 
-    # ========== 解码 ==========
+    # ========== Decoding ==========
 
     def decode_solution(self, decision):
-        """解码决策向量为 (材料列表, 厚度列表)"""
+        """Decode the decision vector into (material list, thickness list)"""
         materials = []
         thicknesses = []
 
@@ -259,7 +259,7 @@ class OpticalFilmProblem:
                     thickness = self.thickness_range[0] + thick_norm * (self.thickness_range[1] - self.thickness_range[0])
                     thicknesses.append(thickness)
 
-        # 层数不足时强制填充
+        # Force-fill when the layer count is insufficient
         while len(materials) < self.min_layers:
             if self.mode == "periodic":
                 prev_mat = materials[-1]
@@ -271,7 +271,7 @@ class OpticalFilmProblem:
             materials.append(next_mat)
             thicknesses.append(random.uniform(*self.thickness_range))
 
-        # 修复相邻层约束
+        # Repair the adjacent-layer constraint
         conflicts = self.check_adjacent_layer_constraint(materials)
         if conflicts:
             materials, thicknesses = self.repair_adjacent_layers(materials, thicknesses)
@@ -279,13 +279,13 @@ class OpticalFilmProblem:
         return materials, thicknesses
 
     def decode_solution_with_repair(self, decision):
-        """解码并修复"""
+        """Decode and repair"""
         return self.decode_solution(decision)
 
-    # ========== 激活状态 ==========
+    # ========== Activation state ==========
 
     def is_layer_active(self, decision, layer_idx):
-        """判断指定层是否激活"""
+        """Determine whether the given layer is active"""
         if layer_idx == 0:
             return True
         start = layer_idx * (self.material_bits + 1)
@@ -295,7 +295,7 @@ class OpticalFilmProblem:
             return any(decision[start:start + self.material_bits] > 0.5)
 
     def count_active_layers(self, decision):
-        """统计激活的层数"""
+        """Count the number of active layers"""
         count = 1
         for i in range(1, self.max_layers):
             if self.is_layer_active(decision, i):
@@ -308,10 +308,10 @@ class OpticalFilmProblem:
     def can_remove_layer(self, decision):
         return self.count_active_layers(decision) > self.min_layers
 
-    # ========== 变异操作 ==========
+    # ========== Mutation operators ==========
 
     def layer_mutation(self, decision):
-        """层数变异"""
+        """Layer-count mutation"""
         new_dec = decision.copy()
 
         if self.mode == "periodic":
@@ -360,10 +360,10 @@ class OpticalFilmProblem:
             return self.enforce_layer_constraints(new_dec)
 
     def material_mutation(self, decision):
-        """材料变异
+        """Material mutation
 
-        periodic模式: 无意义（交替强制），直接返回
-        penalty模式: 变异除第一层外的材料，确保相邻层不同
+        periodic mode: meaningless (alternation is enforced), return directly
+        penalty mode: mutate materials of layers other than the first, keeping adjacent layers different
         """
         if self.mode == "periodic":
             return decision
@@ -405,7 +405,7 @@ class OpticalFilmProblem:
         return new_decision
 
     def polynomial_mutate_single(self, x, eta, low, up):
-        """多项式变异单个变量"""
+        """Polynomial mutation of a single variable"""
         if random.random() < self.mut_prob:
             delta1 = (x - low) / (up - low)
             delta2 = (up - x) / (up - low)
@@ -424,7 +424,7 @@ class OpticalFilmProblem:
         return x
 
     def thickness_mutation(self, decision):
-        """厚度变异"""
+        """Thickness mutation"""
         new_decision = copy.deepcopy(decision)
         for i in range(self.max_layers):
             start_idx = i * (self.material_bits + 1)
@@ -441,7 +441,7 @@ class OpticalFilmProblem:
         return new_decision
 
     def optical_mutation(self, decision):
-        """光学薄膜专用变异操作"""
+        """Mutation operator specific to optical thin films"""
         new_decision = copy.deepcopy(decision)
 
         if random.random() < self.layer_mut_prob:
@@ -458,10 +458,10 @@ class OpticalFilmProblem:
 
         return new_decision
 
-    # ========== 适应度评估 ==========
+    # ========== Fitness evaluation ==========
 
     def batch_evaluate_optical_films(self, decisions):
-        """批量评估，支持批次分割和层数惩罚"""
+        """Batch evaluation with batch splitting and layer-count penalty"""
         if len(decisions) <= self.max_batch_size:
             return self._evaluate_batch(decisions)
 
@@ -472,7 +472,7 @@ class OpticalFilmProblem:
         return all_obj
 
     def _evaluate_batch(self, decisions):
-        """评估单个批次"""
+        """Evaluate a single batch"""
         input_data = []
         layer_counts = []
         for dec in decisions:
@@ -497,7 +497,7 @@ class OpticalFilmProblem:
         return objectives
 
     def get_objective_values(self, decisions):
-        """获取三个目标函数值"""
+        """Get the three objective values"""
         objectives = self.batch_evaluate_optical_films(decisions)
         obj1 = [o[0] for o in objectives]
         obj2 = [o[1] for o in objectives]
@@ -505,7 +505,7 @@ class OpticalFilmProblem:
         return obj1, obj2, obj3
 
     def update_parameters(self, generation, max_generation):
-        """根据进化进度更新参数"""
+        """Update parameters based on the evolution progress"""
         if self.config.adaptive_params['enabled']:
             adaptive = self.config.get_adaptive_parameters(generation, max_generation)
             self.layer_mut_prob = adaptive['layer_mut_prob']

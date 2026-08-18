@@ -2,44 +2,44 @@ clc;
 clear;
 close all;
 
-%% 设置路径
+%% Set paths
 maskImagePath = "E:\ProjectX\Evaluation of Camo\gbvs-master\Arctic\arctic_mask.png";
 saliencyImagePath = "E:\ProjectX\Evaluation of Camo\gbvs-master\arctic__amorphous_pattern_final_singlecolor_Saliency\arctic__amorphous_pattern_final_singlecolor_Itti_map.png";
 
-%% 读取显著性图
+%% Read the saliency map
 [saliencyImage, ~] = imread(saliencyImagePath);
 if size(saliencyImage, 3) == 3
     saliencyImage = rgb2gray(saliencyImage);
 end
 saliencyImage = double(saliencyImage);
 
-%% 读取并安全转换掩膜图像为二值图
+%% Read the mask image and safely convert it to binary
 [maskImage, map] = imread(maskImagePath);
 
 if ~isempty(map)
-    % 索引图像
+    % indexed image
     if exist('im2gray', 'file') % R2020a+
         grayMask = im2gray(maskImage, map);
     else
         grayMask = rgb2gray(ind2rgb(maskImage, map));
     end
 elseif size(maskImage, 3) == 3
-    % RGB 图像
+    % RGB image
     grayMask = rgb2gray(maskImage);
 else
-    % 灰度或二值图像
+    % grayscale or binary image
     grayMask = maskImage;
 end
 
-% 转为二值图像
+% Convert to a binary image
 maskBinary = imbinarize(grayMask);
 
-% 检查是否有前景
+% Check that there is foreground
 if ~any(maskBinary(:))
     error('掩膜图像中没有检测到任何前景像素！');
 end
 
-%% 标记连通区域
+%% Label connected regions
 labeledMask = bwlabel(maskBinary);
 stats = regionprops(labeledMask, 'BoundingBox', 'PixelIdxList');
 
@@ -49,12 +49,12 @@ end
 
 nRegions = length(stats);
 
-%% 预分配结果结构体（关键：避免字段不一致错误）
+%% Preallocate the result struct (key: avoids inconsistent-field errors)
 template = struct('AvgSaliency', 0.0, 'MaxSaliency', 0.0, 'BoundingBox', zeros(1,4));
 results = repmat(template, nRegions, 1);
 
-%% 可视化：在显著性图上绘制区域和标签
-figure('Visible', 'on');  % 确保 figure 显示
+%% Visualization: draw regions and labels on the saliency map
+figure('Visible', 'on');  % make sure the figure is shown
 imshow(saliencyImage, []);
 hold on;
 
@@ -65,7 +65,7 @@ for idx = 1:nRegions
     avgSaliency = mean(sal_vals);
     maxSaliency = max(sal_vals);
     
-    % 自动归一化（如果显著性图是 uint8 范围 0-255）
+    % Auto-normalize (if the saliency map is uint8, range 0-255)
     if max(saliencyImage(:)) > 1
         avgSaliency = avgSaliency / 255;
         maxSaliency = maxSaliency / 255;
@@ -78,7 +78,7 @@ for idx = 1:nRegions
     bb = stats(idx).BoundingBox;  % [x, y, w, h]
     rectangle('Position', bb, 'EdgeColor', 'r', 'LineWidth', 2);
     
-    % 文本标签（防止越界）
+    % Text label (kept inside the image bounds)
     x_text = bb(1);
     y_text = max(bb(2) - 10, 10);
     text(x_text, y_text, ...
@@ -90,25 +90,25 @@ end
 title('Mask Regions with Normalized Saliency');
 hold off;
 
-%% 判断模型名称（用于文件命名）
+%% Determine the model name (used for file naming)
 modelName = 'GBVS';
 if contains(saliencyImagePath, 'Itti', 'IgnoreCase', true)
     modelName = 'Itti';
 end
 
-%% 获取输出目录
+%% Get the output directory
 folder = fileparts(saliencyImagePath);
 if isempty(folder)
     folder = '.';
 end
 
-%% 1. 保存可视化图像
+%% 1. Save the visualization image
 visFileName = fullfile(folder, ['saliency_visualization_' modelName '.png']);
-visFileName = char(visFileName);  % 确保是 char 向量
+visFileName = char(visFileName);  % make sure it is a char vector
 print(gcf, '-dpng', visFileName);
 disp(['✅ 可视化图像已保存至: ', visFileName]);
 
-%% 2. 保存 CSV 结果
+%% 2. Save the CSV results
 csvFileName = fullfile(folder, ['saliency_labels_' modelName '.csv']);
 csvFileName = char(csvFileName);
 

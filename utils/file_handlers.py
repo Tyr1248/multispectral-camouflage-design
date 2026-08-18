@@ -1,5 +1,5 @@
 """
-文件处理功能
+File handling utilities
 """
 
 import os
@@ -13,11 +13,11 @@ from PIL import Image
 
 def _to_jsonable(obj, max_array_size=1000):
     """
-    递归转换为 JSON/YAML 可序列化的 Python 原生类型
+    Recursively convert to JSON/YAML-serializable native Python types.
 
-    - numpy 标量转 int/float/bool
-    - 小型 numpy 数组转 list
-    - 大型数组（如图案图像）只保留形状信息，避免 JSON 爆炸
+    - numpy scalars -> int/float/bool
+    - small numpy arrays -> list
+    - large arrays (e.g. pattern images) keep only shape info to avoid huge JSON
     """
     if isinstance(obj, dict):
         return {str(k): _to_jsonable(v, max_array_size) for k, v in obj.items()}
@@ -38,36 +38,36 @@ def _to_jsonable(obj, max_array_size=1000):
 
 def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
     """
-    保存设计结果
+    Save design results.
 
-    输入:
-        design_params: dict - 设计参数字典
-        spectrum_data: dict - 光谱数据字典，
-            结构为 {'wavelengths': [...], 'colors': {color_key: {...}}}
-        pattern_image: np.array / dict / None - 迷彩图案，
-            可传 {'amorphous': arr, 'crystalline': arr} 同时保存两种状态
-        save_dir: str - 保存目录路径
+    Args:
+        design_params: dict - design parameters
+        spectrum_data: dict - spectrum data,
+            structured as {'wavelengths': [...], 'colors': {color_key: {...}}}
+        pattern_image: np.array / dict / None - camouflage pattern;
+            pass {'amorphous': arr, 'crystalline': arr} to save both states
+        save_dir: str - output directory path
 
-    输出:
-        file_paths: dict - 保存的所有文件路径；失败返回 {}
+    Returns:
+        file_paths: dict - paths of all saved files; {} on failure
     """
-    # 确保目录存在
+    # Ensure the directory exists
     ensure_directory(save_dir)
 
-    # 生成时间戳和唯一ID
+    # Generate timestamp and unique ID
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     design_id = design_params.get('design_id', f'design_{timestamp}')
 
     file_paths = {}
 
     try:
-        # 1. 保存设计参数为JSON（自动处理 numpy 类型，剔除大型图像数组）
+        # 1. Save design parameters as JSON (handles numpy types, strips large image arrays)
         design_file = os.path.join(save_dir, f"{design_id}_params.json")
         with open(design_file, 'w', encoding='utf-8') as f:
             json.dump(_to_jsonable(design_params), f, ensure_ascii=False, indent=2)
         file_paths['design_json'] = design_file
 
-        # 2. 保存光谱数据为CSV（匹配实际数据结构: wavelengths + colors）
+        # 2. Save spectrum data as CSV (matches actual structure: wavelengths + colors)
         if spectrum_data and 'wavelengths' in spectrum_data and 'colors' in spectrum_data:
             wavelengths = spectrum_data['wavelengths']
             colors = spectrum_data.get('colors', {})
@@ -88,7 +88,7 @@ def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
                         color_data = colors[key]
                         for state in ('amorphous', 'crystalline'):
                             emiss = color_data.get(state, {}).get('emissivity', [])
-                            # emissivity 结构为 [[逐波长值...]]（每个solution一行），取第一个
+                            # emissivity is [[per-wavelength values...]] (one row per solution); take the first
                             if emiss and len(emiss) > 0 and i < len(emiss[0]):
                                 row.append(emiss[0][i])
                             else:
@@ -97,7 +97,7 @@ def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
 
             file_paths['spectrum_csv'] = spectrum_file
 
-            # 2b. 保存光谱曲线图 PNG
+            # 2b. Save the spectrum curve plot as PNG
             try:
                 import matplotlib
                 matplotlib.use('Agg')
@@ -131,7 +131,7 @@ def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
             except Exception as e:
                 print(f"保存光谱图失败: {e}")
 
-        # 3. 保存图案图像（支持同时保存非晶态和晶态）
+        # 3. Save pattern images (supports saving both amorphous and crystalline states)
         patterns = {}
         if isinstance(pattern_image, dict):
             patterns = {k: v for k, v in pattern_image.items() if isinstance(v, np.ndarray)}
@@ -147,7 +147,7 @@ def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
             except Exception as e:
                 print(f"保存{state}图案失败: {e}")
 
-        # 4. 生成并保存预览图像（非晶态/晶态上下对比，保持宽高比，无损PNG）
+        # 4. Generate and save preview image (amorphous/crystalline stacked, aspect ratio kept, lossless PNG)
         try:
             from core.visualization import generate_design_preview
             preview = generate_design_preview(design_params, patterns, size=(1080, 1240))
@@ -158,7 +158,7 @@ def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
         except Exception as e:
             print(f"生成预览图像失败: {e}")
 
-        # 5. 保存所有数据的汇总文件
+        # 5. Save a summary file with all data
         summary = {
             'design_id': design_id,
             'timestamp': timestamp,
@@ -185,13 +185,13 @@ def save_design_results(design_params, spectrum_data, pattern_image, save_dir):
 
 def load_design_config(config_path):
     """
-    加载设计配置
+    Load a design configuration.
 
-    输入:
-        config_path: str - 配置文件路径
+    Args:
+        config_path: str - path to the config file
 
-    输出:
-        dict - 设计配置
+    Returns:
+        dict - design configuration
     """
     if not os.path.exists(config_path):
         print(f"配置文件不存在: {config_path}")
@@ -204,7 +204,7 @@ def load_design_config(config_path):
             elif config_path.endswith('.json'):
                 return json.load(f)
             else:
-                # 尝试自动检测格式
+                # Try to auto-detect the format
                 content = f.read()
                 try:
                     return json.loads(content)
@@ -217,14 +217,14 @@ def load_design_config(config_path):
 
 def export_to_format(design_data, export_format='json'):
     """
-    导出设计数据为不同格式
+    Export design data to different formats.
 
-    输入:
-        design_data: dict - 设计数据
-        export_format: str - 导出格式
+    Args:
+        design_data: dict - design data
+        export_format: str - export format
 
-    输出:
-        bytes/str - 导出数据
+    Returns:
+        bytes/str - exported data
     """
     try:
         if export_format == 'json':
@@ -232,7 +232,7 @@ def export_to_format(design_data, export_format='json'):
         elif export_format == 'yaml' or export_format == 'yml':
             return yaml.dump(design_data, allow_unicode=True)
         elif export_format == 'csv':
-            # 简化的CSV导出
+            # Simplified CSV export
             output = []
             for key, value in design_data.items():
                 if isinstance(value, (str, int, float, bool)):
@@ -253,13 +253,13 @@ def export_to_format(design_data, export_format='json'):
 
 def ensure_directory(dir_path):
     """
-    确保目录存在
+    Ensure a directory exists.
 
-    输入:
-        dir_path: str - 目录路径
+    Args:
+        dir_path: str - directory path
 
-    输出:
-        bool: 是否成功创建/确认目录存在
+    Returns:
+        bool: whether the directory was successfully created / confirmed to exist
     """
     try:
         if not os.path.exists(dir_path):

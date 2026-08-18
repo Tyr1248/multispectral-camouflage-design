@@ -1,13 +1,13 @@
-"""遗传算法优化器（单目标 — 优化 Band1 发射率）
+"""Genetic algorithm optimizer (single objective — optimize Band1 emissivity)
 
-支持两种模式:
-- "periodic": Ge/ZnS交替
-- "penalty":  8种材料 + 层数惩罚
+Supports two modes:
+- "periodic": alternating Ge/ZnS
+- "penalty":  8 materials + layer-count penalty
 
-修复:
-- 交叉与变异分离
-- 子代自动修复相邻层约束
-- 精英保留 + 锦标赛选择
+Fixes:
+- Crossover and mutation are separated
+- Offspring are automatically repaired to satisfy the adjacent-layer constraint
+- Elitism + tournament selection
 """
 
 import random
@@ -45,7 +45,7 @@ class GeneticAlgorithmOptimizer:
             'best_fitness_history': []
         }
 
-        # GA特有参数（如果config没有则设置默认值）
+        # GA-specific parameters (set defaults if not present in config)
         if not hasattr(self.config, 'crossover_rate'):
             self.config.crossover_rate = 0.8
         if not hasattr(self.config, 'mutation_rate'):
@@ -57,10 +57,10 @@ class GeneticAlgorithmOptimizer:
         with open(os.path.join(self.results_dir, "ga_config.txt"), 'w') as f:
             f.write(str(self.config))
 
-    # ========== 交叉（不含变异）==========
+    # ========== Crossover (without mutation) ==========
 
     def activation_aware_crossover(self, a, b):
-        """激活状态感知交叉 — 处理层数差异"""
+        """Activation-state-aware crossover — handles differences in layer count"""
         child = np.zeros_like(a)
         child[0:self.material_bits + 1] = a[0:self.material_bits + 1]
 
@@ -90,7 +90,7 @@ class GeneticAlgorithmOptimizer:
     def crossover(self, a, b):
         return self.activation_aware_crossover(a, b)
 
-    # ========== 变异 ==========
+    # ========== Mutation ==========
 
     def mutation(self, solution):
         if random.random() < self.config.mutation_rate:
@@ -98,13 +98,13 @@ class GeneticAlgorithmOptimizer:
         solution = self.optical_problem.repair_adjacent_layers_in_decision(solution)
         return solution
 
-    # ========== 初始化 ==========
+    # ========== Initialization ==========
 
     def initialize_optical_population(self):
         return [self.optical_problem.create_optical_film_decision()
                 for _ in range(self.config.pop_size)]
 
-    # ========== 适应度 ==========
+    # ========== Fitness ==========
 
     def evaluate_fitness(self, population):
         obj1, obj2, obj3 = self.optical_problem.get_objective_values(population)
@@ -112,7 +112,7 @@ class GeneticAlgorithmOptimizer:
         self.evaluation_stats['total_individuals'] += len(population)
         return obj1, obj2, obj3
 
-    # ========== 选择 ==========
+    # ========== Selection ==========
 
     def tournament_selection(self, population, fitness_values, tournament_size=3):
         selected = []
@@ -126,7 +126,7 @@ class GeneticAlgorithmOptimizer:
         sorted_idx = np.argsort(fitness_values)
         return [population[i] for i in sorted_idx[:elite_size]]
 
-    # ========== 收敛检测 ==========
+    # ========== Convergence detection ==========
 
     def check_convergence(self, best_history, generation):
         if generation < self.config.convergence_criteria['min_generations']:
@@ -137,7 +137,7 @@ class GeneticAlgorithmOptimizer:
                 return True
         return False
 
-    # ========== 主优化循环 ==========
+    # ========== Main optimization loop ==========
 
     def optimize(self):
         mode_desc = "周期性结构 (Ge/ZnS交替)" if self.mode == "periodic" else "层数惩罚 (8种材料)"
@@ -243,7 +243,7 @@ class GeneticAlgorithmOptimizer:
         with open(stats_file, 'w') as f:
             json.dump(self.evaluation_stats, f, indent=2)
 
-    # ========== 可视化与保存 ==========
+    # ========== Visualization and saving ==========
 
     def visualize_results(self, population, obj1, obj2, obj3, best_solution, fitness_history):
         if not self.config.plot_results:
@@ -252,7 +252,7 @@ class GeneticAlgorithmOptimizer:
 
         fig = plt.figure(figsize=(15, 10))
 
-        # 收敛曲线
+        # Convergence curve
         ax1 = plt.subplot(2, 3, 1)
         ax1.plot(fitness_history, 'b-', linewidth=2)
         ax1.set_xlabel('Generation')
@@ -260,7 +260,7 @@ class GeneticAlgorithmOptimizer:
         ax1.set_title('Convergence Curve')
         ax1.grid(True, alpha=0.3)
 
-        # 适应度分布
+        # Fitness distribution
         ax2 = plt.subplot(2, 3, 2)
         ax2.hist(obj1, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
         ax2.axvline(min(obj1), color='red', linestyle='--', linewidth=2,
@@ -270,7 +270,7 @@ class GeneticAlgorithmOptimizer:
         ax2.set_title('Final Fitness Distribution')
         ax2.legend()
 
-        # 3D目标空间
+        # 3D objective space
         ax3 = plt.subplot(2, 3, 3, projection='3d')
         ax3.scatter(obj1, obj2, obj3, c=obj1, cmap='viridis', s=20, alpha=0.5)
         best_idx = np.argmin(obj1)
@@ -286,7 +286,7 @@ class GeneticAlgorithmOptimizer:
         ax4.set_title('Band1 vs Band2')
         plt.colorbar(sc, ax=ax4, label='Band3')
 
-        # 层数分布
+        # Layer count distribution
         ax5 = plt.subplot(2, 3, 5)
         layer_counts = [self.optical_problem.count_active_layers(ind) for ind in population]
         unique_layers = sorted(set(layer_counts))
@@ -296,7 +296,7 @@ class GeneticAlgorithmOptimizer:
         ax5.set_ylabel('Count')
         ax5.set_title('Layer Count Distribution')
 
-        # 最佳解厚度
+        # Thicknesses of the best solution
         ax6 = plt.subplot(2, 3, 6)
         mats, thicks = self.optical_problem.decode_solution(best_solution)
         active_thicks = [t for t in thicks if t > 0]
@@ -331,7 +331,7 @@ class GeneticAlgorithmOptimizer:
         print(f"解决方案已保存至: {self.results_dir}")
 
 
-# ========== 主程序入口 ==========
+# ========== Main program entry point ==========
 if __name__ == "__main__":
     import sys
 

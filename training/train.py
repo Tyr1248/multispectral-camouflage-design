@@ -18,25 +18,25 @@ np.random.seed(SEED)
 
 
 def format_time(seconds):
-    """将秒数格式化为时:分:秒"""
+    """Format seconds as hours:minutes:seconds."""
     return str(timedelta(seconds=int(seconds)))
 
 
-# 统一时间戳（用于本次训练的所有输出）
+# Unified timestamp (used for all outputs of this training run)
 training_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-# 创建带时间戳的权重保存目录
+# Create the timestamped weight-save directory
 weight_dir = f"weights_{training_timestamp}"
 os.makedirs('logs', exist_ok=True)
-os.makedirs('weight', exist_ok=True)  # 兼容旧代码（虽未使用）
+os.makedirs('weight', exist_ok=True)  # kept for compatibility with legacy code (currently unused)
 os.makedirs(weight_dir, exist_ok=True)
 
-# 初始化模型和优化器
+# Initialize model and optimizers
 device = "cuda"
 generator = Generator().to(device)
 discriminator = Discriminator().to(device)
 
-# Kaiming Uniform 初始化
+# Kaiming Uniform initialization
 def init_weights(m):
     if isinstance(m, nn.Linear):
         nn.init.kaiming_uniform_(m.weight, nonlinearity='leaky_relu', a=0.2)
@@ -50,11 +50,11 @@ generator.apply(init_weights)
 discriminator.evaluator.apply(init_weights)
 print("✅ 使用 Kaiming Uniform 初始化权重")
 
-# 优化器
+# Optimizers
 optimizer_G = Adam(generator.parameters(), lr=1e-3, betas=(0.5, 0.999))
 optimizer_D = Adam(discriminator.evaluator.parameters(), lr=2e-4, betas=(0.5, 0.999))
 
-# 数据加载
+# Data loading
 X_train, y_train, X_val, y_val = get_train_val_split(
     "dataset.csv",
     y_mean_file="y_mean.npy",
@@ -67,11 +67,11 @@ val_dataset = CustomDataset(X_val, y_val)
 train_loader = DataLoader(train_dataset, batch_size=50000, shuffle=True, pin_memory=True)
 val_loader = DataLoader(val_dataset, batch_size=12500, shuffle=False, pin_memory=True)
 
-# 训练配置
+# Training configuration
 epochs = 100000
 best_val_loss = float('inf')
 
-# 定义训练参数（用于保存）
+# Define training parameters (for saving)
 training_config = {
     "SEED": SEED,
     "epochs": epochs,
@@ -102,10 +102,10 @@ training_config = {
     "training_start_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 }
 
-# CSV 日志文件路径
+# CSV log file path
 csv_log_file = f"logs/training_log_{training_timestamp}.csv"
 
-# 写入 CSV 表头
+# Write the CSV header
 with open(csv_log_file, 'w', newline='') as f:
     writer = csv.writer(f)
     writer.writerow([
@@ -117,12 +117,12 @@ with open(csv_log_file, 'w', newline='') as f:
         "LR_G", "LR_D"
     ])
 
-# 保存训练配置
+# Save the training configuration
 config_file = f"logs/config_{training_timestamp}.json"
 with open(config_file, 'w') as f:
     json.dump(training_config, f, indent=4)
 
-# 模型设为训练模式
+# Set models to training mode
 discriminator.train()
 generator.train()
 
@@ -141,7 +141,7 @@ print(f"回归损失权重 α 在前 20000 轮线性增长至 1.0")
 for epoch in range(1, epochs + 1):
     epoch_start_time = time.time()
 
-    # 动态调整学习率（从第50000轮开始线性衰减到0）
+    # Dynamically adjust the learning rate (linear decay to 0 starting at epoch 50000)
     current_epoch = epoch
     lr_G = 1e-3 * (1 - max(0, (current_epoch - 50000) / 50000))
     lr_D = 2e-4 * (1 - max(0, (current_epoch - 50000) / 50000))
@@ -151,13 +151,13 @@ for epoch in range(1, epochs + 1):
     for param_group in optimizer_D.param_groups:
         param_group['lr'] = lr_D
 
-    # 训练一个 epoch
+    # Train for one epoch
     for i, (real_thickness, real_lab) in enumerate(train_loader):
         real_thickness = real_thickness.to(device)
         real_lab = real_lab.to(device)
 
         # ---------------------
-        # 更新判别器（Evaluator）
+        # Update the discriminator (Evaluator)
         # ---------------------
         optimizer_D.zero_grad()
 
@@ -175,7 +175,7 @@ for epoch in range(1, epochs + 1):
         optimizer_D.step()
 
         # ---------------------
-        # 更新生成器
+        # Update the generator
         # ---------------------
         optimizer_G.zero_grad()
 
@@ -196,14 +196,14 @@ for epoch in range(1, epochs + 1):
         total_loss.backward()
         optimizer_G.step()
 
-    # 时间统计
+    # Timing statistics
     epoch_time = time.time() - epoch_start_time
     epoch_times.append(epoch_time)
     avg_epoch_time = np.mean(epoch_times[-100:]) if len(epoch_times) >= 100 else np.mean(epoch_times)
     elapsed_time = time.time() - total_start_time
     remaining_time = avg_epoch_time * (epochs - epoch)
 
-    # 验证（每轮都验证）
+    # Validation (run every epoch)
     with torch.no_grad():
         val_loss_D = 0.0
         val_loss_real_total = 0.0
@@ -220,7 +220,7 @@ for epoch in range(1, epochs + 1):
             val_thickness = val_thickness.to(device)
             val_lab = val_lab.to(device)
 
-            # 判别器验证
+            # Discriminator validation
             real_score_val, _ = discriminator(val_thickness)
             z_E_val = torch.randn(val_lab.size(0), 2, device=device)
             fake_thickness_E_val = generator(z_E_val, val_lab)
@@ -234,7 +234,7 @@ for epoch in range(1, epochs + 1):
             val_loss_real_total += loss_real_val.item()
             val_loss_fake_total += loss_fake_val.item()
 
-            # 生成器验证
+            # Generator validation
             z_G_val = torch.randn(val_lab.size(0), 2, device=device)
             fake_thickness_G_val = generator(z_G_val, val_lab)
             fake_score_G_val, _ = discriminator(fake_thickness_G_val)
@@ -251,7 +251,7 @@ for epoch in range(1, epochs + 1):
             val_loss_G_adv_total += adv_loss_val.item()
             val_loss_G_reg_total += reg_loss_val_weighted.item()
 
-        # 平均验证损失
+        # Average validation losses
         val_loss_D_avg = val_loss_D / len(val_loader)
         val_loss_real_avg = val_loss_real_total / len(val_loader)
         val_loss_fake_avg = val_loss_fake_total / len(val_loader)
@@ -263,7 +263,7 @@ for epoch in range(1, epochs + 1):
         generator.train()
         discriminator.train()
 
-        # 写入 CSV 日志
+        # Write to the CSV log
         with open(csv_log_file, 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([
@@ -291,7 +291,7 @@ for epoch in range(1, epochs + 1):
                 f"{lr_D:.6f}"
             ])
 
-        # 打印信息
+        # Print information
         current_time = datetime.now().strftime('%H:%M:%S')
         d_loss_info = (f"D: {loss_D.item():.4f} "
                        f"(real: {loss_real.item():.4f} "
@@ -315,27 +315,27 @@ for epoch in range(1, epochs + 1):
               f"    Val:   {val_d_info} | {val_g_info}\n"
               f"    LR: G{lr_G:.2e}/D{lr_D:.2e}")
 
-        # 保存最佳模型（带时间戳）
+        # Save the best model (timestamped)
         if val_loss_G_avg < best_val_loss:
             best_val_loss = val_loss_G_avg
             torch.save(generator.state_dict(), f'{weight_dir}/best_generator_{training_timestamp}.pth')
             torch.save(discriminator.state_dict(), f'{weight_dir}/best_discriminator_{training_timestamp}.pth')
             print(f"    💾 保存最佳模型 - Val G Loss: {best_val_loss:.4f}")
 
-    # 周期性保存检查点（带时间戳）
+    # Periodically save checkpoints (timestamped)
     if epoch % 5000 == 0:
         torch.save(generator.state_dict(), f"{weight_dir}/generator_epoch{epoch}_{training_timestamp}.pth")
         torch.save(discriminator.state_dict(), f"{weight_dir}/discriminator_epoch{epoch}_{training_timestamp}.pth")
         print(f"    💾 保存检查点 - Epoch {epoch}")
 
-# 训练结束
+# Training finished
 total_time = time.time() - total_start_time
 print(f"✅ 训练完成! 总时间: {format_time(total_time)}")
 print(f"🏁 结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"📊 CSV 日志文件: {csv_log_file}")
 print(f"📁 权重目录: {weight_dir}")
 
-# 追加训练总结到 CSV（可选：作为最后一行注释，但 CSV 不适合。改写入 config）
+# Append the training summary (CSV is unsuitable for a trailing comment line, so write it to the config instead)
 training_config["training_end_time"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 training_config["total_training_time"] = format_time(total_time)
 training_config["best_val_G_loss"] = best_val_loss

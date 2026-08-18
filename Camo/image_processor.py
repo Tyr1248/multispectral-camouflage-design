@@ -3,20 +3,20 @@ import cv2
 
 
 class ImageProcessor:
-    """图像处理器"""
+    """Image processor."""
 
     @staticmethod
     def crop_to_original_size(canvas, expand_pixels, original_size):
         """
-        将扩展后的画布裁切回原始尺寸
+        Crop the expanded canvas back to the original size.
 
         Args:
-            canvas: 扩展后的画布
-            expand_pixels: 扩展像素数
-            original_size: 原始尺寸 (width, height)
+            canvas: Expanded canvas.
+            expand_pixels: Number of expanded pixels.
+            original_size: Original size (width, height).
 
         Returns:
-            裁切后的画布
+            Cropped canvas.
         """
         if expand_pixels == 0:
             return canvas
@@ -27,7 +27,7 @@ class ImageProcessor:
         end_x = width - expand_pixels
         end_y = height - expand_pixels
 
-        # 确保索引有效
+        # Ensure indices are valid
         start_x = max(0, min(start_x, width - 1))
         start_y = max(0, min(start_y, height - 1))
         end_x = max(start_x + 1, min(end_x, width))
@@ -39,15 +39,15 @@ class ImageProcessor:
     @staticmethod
     def upscale_image(image, scale_factor, method='nearest'):
         """
-        上采样图像
+        Upsample an image.
 
         Args:
-            image: 输入图像
-            scale_factor: 缩放因子
-            method: 插值方法 ('nearest', 'bilinear', 'cubic')
+            image: Input image.
+            scale_factor: Scaling factor.
+            method: Interpolation method ('nearest', 'bilinear', 'cubic').
 
         Returns:
-            上采样后的图像
+            Upsampled image.
         """
         if scale_factor <= 1:
             return image
@@ -56,7 +56,7 @@ class ImageProcessor:
         new_width = int(width * scale_factor)
         new_height = int(height * scale_factor)
 
-        # 选择插值方法
+        # Select interpolation method
         if method == 'nearest':
             interpolation = cv2.INTER_NEAREST
         elif method == 'bilinear':
@@ -66,11 +66,11 @@ class ImageProcessor:
         else:
             interpolation = cv2.INTER_NEAREST
 
-        # 如果是单通道图像
+        # Single-channel image
         if len(image.shape) == 2:
             upscaled_image = cv2.resize(image, (new_width, new_height), interpolation=interpolation)
         else:
-            # 多通道图像
+            # Multi-channel image
             upscaled_image = np.zeros((new_height, new_width, image.shape[2]), dtype=image.dtype)
             for c in range(image.shape[2]):
                 upscaled_image[:, :, c] = cv2.resize(

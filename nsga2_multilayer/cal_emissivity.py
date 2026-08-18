@@ -4,17 +4,17 @@ from tmm_fast import coh_tmm as tmm
 from utils_materials import get_n_k
 import utils_units
 
-# 设置薄膜结构和参数
+# Set up thin-film structure and parameters
 str_mode = "emissivity"
 
-# 定义波长范围（单位：米）
+# Define wavelength range (unit: meters)
 wavelengths = np.linspace(3000e-9, 14000e-9, 1100)
 wavelengths_in_nm = utils_units.convert_m_to_nm(torch.tensor(wavelengths))
 wavelengths_in_um = utils_units.convert_m_to_um(torch.tensor(wavelengths))
 
 
 def pad_structure(materials, thicknesses, target_length):
-    """将材料和厚度列表填充到目标长度"""
+    """Pad the materials and thicknesses lists to the target length"""
     current_length = len(materials)
     if current_length >= target_length:
         return materials[:target_length], thicknesses[:target_length]
@@ -25,7 +25,7 @@ def pad_structure(materials, thicknesses, target_length):
 
 
 def get_spectrum_batch(n_k_batch, thicknesses_batch, str_mode):
-    """批量计算光谱
+    """Compute spectra in batch
     n_k_batch: [B, L, W], thicknesses_batch: [B, L]
     """
     angles = torch.tensor([0.0])
@@ -57,9 +57,9 @@ def get_spectrum_batch(n_k_batch, thicknesses_batch, str_mode):
 
 
 def get_emissivity_batch(spectrum_batch):
-    """批量计算各波段平均发射率
+    """Compute average emissivity of each band in batch
     spectrum_batch: [B, W]
-    返回: [B, 4] — MWIR, RC2, LWIR, laser
+    Returns: [B, 4] — MWIR, RC2, LWIR, laser
     """
     laser_range = (10.59, 10.61)
     mwir_range = (3.0, 5.0)
@@ -82,16 +82,16 @@ def get_emissivity_batch(spectrum_batch):
 
 
 def batch_calculate_weighted_score(input_list, ga_weights=None, use_laser_term=False):
-    """批量计算多组插入材料和厚度的加权得分
+    """Compute the weighted score of multiple sets of inserted materials and thicknesses in batch
 
-    参数:
+    Args:
     input_list: list of (insert_materials, insert_thicknesses)
-    ga_weights: 权重列表
-        - 3项模式 (use_laser_term=False): [w_mwir, w_lwir_inv, w_rc2_inv]
-        - 4项模式 (use_laser_term=True):  [w_mwir, w_lwir, w_rc2_inv, w_laser_inv]
-    use_laser_term: 是否包含激光波段项
+    ga_weights: list of weights
+        - 3-term mode (use_laser_term=False): [w_mwir, w_lwir_inv, w_rc2_inv]
+        - 4-term mode (use_laser_term=True):  [w_mwir, w_lwir, w_rc2_inv, w_laser_inv]
+    use_laser_term: whether to include the laser-band term
 
-    返回:
+    Returns:
     list of [score_case1, score_case2, score_case3]
     """
     if ga_weights is None:

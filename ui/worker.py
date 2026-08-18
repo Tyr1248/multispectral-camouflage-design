@@ -1,13 +1,14 @@
 """
-后台工作线程与进度对话框
+Background worker thread and progress dialog.
 
-用于将耗时操作（颜色提取、cGAN 设计生成、光谱计算、迷彩生成）
-移出 GUI 主线程，避免窗口"无响应"，并提供可视化进度反馈。
+Moves time-consuming operations (color extraction, cGAN design generation,
+spectrum calculation, camouflage generation) off the GUI main thread to
+avoid "not responding" windows, and provides visual progress feedback.
 
-用法:
+Usage:
     def work(report, worker):
-        # report(percent, message) 更新进度; percent=-1 表示不确定进度
-        # worker.check_cancel() 在可取消任务中周期性调用
+        # report(percent, message) updates progress; percent=-1 means indeterminate
+        # call worker.check_cancel() periodically in cancellable tasks
         ...
         return result
 
@@ -22,22 +23,22 @@ import time
 
 
 class CancelledError(Exception):
-    """用户取消后台任务时抛出"""
+    """Raised when the user cancels a background task"""
     pass
 
 
-# 防止 Python 垃圾回收掉仍在运行的 worker
+# Prevent Python from garbage-collecting workers that are still running
 _ACTIVE_WORKERS = set()
 
 
 class WorkerThread(QThread):
-    """通用后台工作线程
+    """Generic background worker thread
 
-    信号:
-        progress(int, str)   - 进度百分比(0-100, -1 表示不确定)与消息
-        succeeded(object)    - 任务完成，携带返回值
-        failed(str)          - 任务失败，携带错误信息
-        was_cancelled()      - 任务被用户取消
+    Signals:
+        progress(int, str)   - progress percentage (0-100, -1 means indeterminate) and message
+        succeeded(object)    - task finished, carries the return value
+        failed(str)          - task failed, carries the error message
+        was_cancelled()      - task was cancelled by the user
     """
 
     progress = pyqtSignal(int, str)
@@ -58,7 +59,7 @@ class WorkerThread(QThread):
         return self._cancelled
 
     def check_cancel(self):
-        """在任务循环中周期性调用；若已取消则抛出 CancelledError"""
+        """Call periodically inside the task loop; raises CancelledError if cancelled"""
         if self._cancelled:
             raise CancelledError()
 
@@ -78,14 +79,14 @@ class WorkerThread(QThread):
 
 
 class ProgressDialog(QDialog):
-    """模态进度对话框：消息标签 + 进度条 + 可选取消按钮"""
+    """Modal progress dialog: message label + progress bar + optional cancel button"""
 
     def __init__(self, title, message, parent=None, cancellable=False):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setModal(True)
         self.setFixedSize(560, 210)
-        # 去掉关闭按钮，防止用户在任务进行中强行关掉对话框
+        # Remove the close button so the user cannot force-close the dialog mid-task
         self.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
 
         layout = QVBoxLayout()
@@ -98,7 +99,7 @@ class ProgressDialog(QDialog):
         layout.addWidget(self.message_label)
 
         self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 0)  # 默认不确定进度（滚动条）
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress by default (busy indicator)
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setStyleSheet("""
             QProgressBar {
@@ -122,7 +123,7 @@ class ProgressDialog(QDialog):
             cancel_btn.clicked.connect(self._on_cancel_clicked)
             layout.addWidget(cancel_btn, alignment=Qt.AlignCenter)
 
-        # 实时耗时显示（演示用计时器）
+        # Live elapsed-time display (demo timer)
         self.elapsed_label = QLabel("Elapsed: 0.0 s")
         self.elapsed_label.setStyleSheet("font-size: 16px; color: #7f8c8d;")
         self.elapsed_label.setAlignment(Qt.AlignCenter)
@@ -140,7 +141,7 @@ class ProgressDialog(QDialog):
         self.elapsed_label.setText(f"Elapsed: {elapsed:.1f} s")
 
     def elapsed_seconds(self):
-        """返回从对话框打开至今的秒数"""
+        """Return the seconds elapsed since the dialog was opened"""
         return time.perf_counter() - self._start_time
 
     def stop_timer(self):
@@ -158,24 +159,24 @@ class ProgressDialog(QDialog):
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(percent)
         else:
-            self.progress_bar.setRange(0, 0)  # 不确定进度
+            self.progress_bar.setRange(0, 0)  # Indeterminate progress
 
 
 def run_with_progress(parent, title, message, work_fn,
                       on_success, on_error=None, on_cancel=None,
                       cancellable=False):
-    """在后台线程中执行 work_fn，同时显示模态进度对话框
+    """Run work_fn in a background thread while showing a modal progress dialog
 
-    参数:
-        parent:      父窗口（通常是调用者 self）
-        title:       对话框标题
-        message:     初始提示消息
-        work_fn:     callable(report, worker) -> result，在后台线程执行，
-                     不得操作任何 GUI 控件
-        on_success:  callable(result)，在主线程执行
-        on_error:    callable(error_message)，在主线程执行（可选）
-        on_cancel:   callable()，用户取消后在主线程执行（可选）
-        cancellable: 是否显示取消按钮
+    Args:
+        parent:      parent window (usually the caller's self)
+        title:       dialog title
+        message:     initial status message
+        work_fn:     callable(report, worker) -> result, runs in the
+                     background thread; must not touch any GUI widget
+        on_success:  callable(result), runs in the main thread
+        on_error:    callable(error_message), runs in the main thread (optional)
+        on_cancel:   callable(), runs in the main thread after user cancel (optional)
+        cancellable: whether to show a cancel button
     """
     dialog = ProgressDialog(title, message, parent=parent, cancellable=cancellable)
     worker = WorkerThread(work_fn, parent=parent)

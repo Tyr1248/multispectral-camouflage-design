@@ -40,13 +40,11 @@ training/weights_*/
 # Generated outputs & temp media
 results/
 debug.log
+demo_assets/
 *.mp4
 *.mov
 *.ogg
 *.ass
-/_comparison.png
-/_make_bgm.py
-/demo_subtitles_en.md
 
 # Config / secrets
 *.local.yaml

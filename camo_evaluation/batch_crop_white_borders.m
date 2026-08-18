@@ -1,18 +1,19 @@
 % batch_crop_white_borders_with_top_crop.m
-% 功能：批量去除图像外围白色边框，并额外裁剪掉指定高度的顶部区域（用于移除标题）
-% 说明：遍历指定文件夹中的所有图像，对每张图像：
-%       1. 自动检测并裁剪四周白边；
-%       2. 再裁剪掉顶部指定的像素行（由 extra_crop_top 设定）。
-%       结果保存在同一文件夹（文件名添加 '_cropped' 后缀）。
+% Function: batch-remove white borders around images, plus crop an additional
+% top region of a given height (used to remove titles)
+% Notes: iterate over all images in the specified folder; for each image:
+%       1. automatically detect and crop the white border on all four sides;
+%       2. then crop the given number of pixel rows from the top (set by extra_crop_top).
+%       Results are saved in the same folder ('_cropped' appended to the filename).
 
-%% 参数设置
-input_folder  = 'white_edge_images';   % 输入图像文件夹（请修改为实际路径）
-% 输出到同一文件夹（无需单独设置 output_folder）
-white_threshold = 240/255;        % 白色阈值，适用于 uint8 图像（240/255 ≈ 0.941）
-extra_crop_top = 50;              % 额外裁剪的顶部像素行数（请根据标题高度调整）
+%% Parameter settings
+input_folder  = 'white_edge_images';   % input image folder (change to the actual path)
+% Output goes to the same folder (no separate output_folder needed)
+white_threshold = 240/255;        % white threshold for uint8 images (240/255 ≈ 0.941)
+extra_crop_top = 50;              % number of extra top pixel rows to crop (adjust to the title height)
 extensions = {'*.jpg','*.jpeg','*.png','*.bmp','*.tif','*.tiff'};
 
-%% 获取所有图像文件
+%% Collect all image files
 files = [];
 for i = 1:length(extensions)
     files = [files; dir(fullfile(input_folder, extensions{i}))];
@@ -22,24 +23,24 @@ if isempty(files)
     error('在指定文件夹中未找到任何支持的图像文件。');
 end
 
-%% 批量处理
+%% Batch processing
 for k = 1:length(files)
     filename = files(k).name;
     filepath = fullfile(input_folder, filename);
     fprintf('正在处理 (%d/%d): %s\n', k, length(files), filename);
     
-    % 读取图像
+    % Read the image
     img = imread(filepath);
     
-    % 第一步：裁剪四周白边
+    % Step 1: crop the white border on all four sides
     img_no_border = cropWhiteBorder(img, white_threshold);
-    
-    % 第二步：额外裁剪顶部指定行数（若图像高度足够）
+
+    % Step 2: crop the extra top rows (if the image is tall enough)
     if extra_crop_top > 0
         h = size(img_no_border, 1);
         if extra_crop_top >= h
             warning('extra_crop_top 大于或等于图像高度，图像将被完全裁剪。请检查参数。');
-            img_cropped = [];  % 图像为空，可自行处理
+            img_cropped = [];  % empty image; handle as needed
         else
             img_cropped = img_no_border(extra_crop_top+1:end, :, :);
         end
@@ -47,7 +48,7 @@ for k = 1:length(files)
         img_cropped = img_no_border;
     end
     
-    % 保存结果（若裁剪后非空）
+    % Save the result (if non-empty after cropping)
     if ~isempty(img_cropped)
         [~, name, ext] = fileparts(filename);
         output_filename = [name '_cropped' ext];
@@ -61,10 +62,10 @@ end
 fprintf('批量处理完成！结果已保存至: %s\n', input_folder);
 
 %% ------------------------------------------------------------------------
-% 子函数：裁剪单张图像的白色边框（同前）
+% Sub-function: crop the white border of a single image (as above)
 %% ------------------------------------------------------------------------
 function img_cropped = cropWhiteBorder(img, threshold)
-    % 归一化到 [0,1]
+    % Normalize to [0,1]
     if isa(img, 'uint8')
         img_norm = double(img) / 255;
     elseif isa(img, 'uint16')
@@ -73,7 +74,7 @@ function img_cropped = cropWhiteBorder(img, threshold)
         img_norm = double(img);
     end
     
-    % 判断白色像素
+    % Identify white pixels
     if size(img_norm, 3) == 1
         is_white = img_norm >= threshold;
     else
@@ -87,7 +88,7 @@ function img_cropped = cropWhiteBorder(img, threshold)
         end
     end
     
-    % 非白色像素位置
+    % Positions of non-white pixels
     [rows, cols] = find(~is_white);
     
     if isempty(rows) || isempty(cols)

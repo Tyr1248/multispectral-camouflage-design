@@ -10,28 +10,28 @@ warnings.filterwarnings('ignore')
 
 
 # ================================
-# 🏗️ 设计过程整合
+# 🏗️ Design pipeline integration
 # ================================
 def load_design_model(generator_path="models/generator.pth",
                       y_mean_path="parameters/y_mean.npy",
                       y_std_path="parameters/y_std.npy"):
     """
-    加载生成器模型和归一化参数
+    Load the generator model and normalization parameters
     """
-    # 注意：这里假设您有这些模块
-    # 如果您在实际运行时遇到导入错误，请根据实际情况调整
+    # Note: this assumes these modules are available
+    # Adjust the imports if you hit import errors at runtime
     try:
         from cGAN import Generator
         from model_utils import load_model
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # 加载模型
+        # Load the model
         generator_model = Generator()
         generator_model = load_model(generator_model, generator_path).to(device)
         generator_model.eval()
 
-        # 加载归一化参数
+        # Load the normalization parameters
         y_mean = np.load(y_mean_path)
         y_std = np.load(y_std_path)
 
@@ -44,51 +44,51 @@ def load_design_model(generator_path="models/generator.pth",
 
 def rgb_to_lab(rgb_color):
     """
-    将RGB颜色转换为Lab颜色空间
+    Convert an RGB color to the Lab color space
     Args:
-        rgb_color: RGB颜色值，范围[0, 255]
+        rgb_color: RGB color values in the range [0, 255]
     Returns:
-        lab_color: Lab颜色值
+        lab_color: Lab color values
     """
     try:
         from colour import sRGB_to_XYZ, XYZ_to_Lab
 
-        # 将RGB归一化到[0, 1]
+        # Normalize RGB to [0, 1]
         rgb_norm = np.array(rgb_color) / 255.0
 
-        # 转换到XYZ
+        # Convert to XYZ
         XYZ = sRGB_to_XYZ(rgb_norm)
 
-        # 转换到Lab
+        # Convert to Lab
         lab = XYZ_to_Lab(XYZ)
 
         return lab.tolist()
     except ImportError:
-        # 如果colour库不可用，使用简化转换
+        # Fall back to the simplified conversion if the colour package is unavailable
         print("警告: colour包不可用，使用简化的RGB到Lab转换。")
         return simplified_rgb_to_lab(rgb_color)
 
 
 def simplified_rgb_to_lab(rgb_color):
     """
-    简化的RGB到Lab转换（当colour库不可用时使用）
+    Simplified RGB to Lab conversion (used when the colour package is unavailable)
     """
-    # 简化的转换方法 - 仅用于演示
+    # Simplified conversion method - for demonstration only
     r, g, b = rgb_color
 
-    # 归一化
+    # Normalize
     r_norm = r / 255.0
     g_norm = g / 255.0
     b_norm = b / 255.0
 
-    # 简单的转换到Lab
+    # Simple conversion to Lab
     L = 116 * (0.2126 * r_norm + 0.7152 * g_norm + 0.0722 * b_norm) - 16
     a = 500 * ((0.4125 * r_norm + 0.3576 * g_norm + 0.1805 * b_norm) -
                (0.0193 * r_norm + 0.1192 * g_norm + 0.9505 * b_norm))
     b_val = 200 * ((0.0193 * r_norm + 0.1192 * g_norm + 0.9505 * b_norm) -
                    (0.0193 * r_norm + 0.1192 * g_norm + 0.9505 * b_norm))
 
-    # 限制范围
+    # Clamp the ranges
     L = max(0, min(100, L))
     a = max(-128, min(127, a))
     b_val = max(-128, min(127, b_val))
@@ -98,59 +98,59 @@ def simplified_rgb_to_lab(rgb_color):
 
 def design_layers(generator_model, y_mean, y_std, device, target_lab, num_samples=1000):
     """
-    设计多层结构
+    Design multilayer structures
     Args:
-        generator_model: 生成器模型
-        y_mean: 归一化均值
-        y_std: 归一化标准差
-        device: 计算设备
-        target_lab: 目标Lab颜色
-        num_samples: 采样数量
+        generator_model: generator model
+        y_mean: normalization mean
+        y_std: normalization standard deviation
+        device: compute device
+        target_lab: target Lab color
+        num_samples: number of samples
     Returns:
-        厚度、颜色属性等
+        thicknesses, color attributes, etc.
     """
-    # 如果模型不可用，生成模拟数据
+    # Generate mock data if the model is unavailable
     if generator_model is None:
         print("使用模拟设计数据...")
-        # 生成模拟数据
-        all_thicknesses = np.random.rand(num_samples, 4) * 100  # 4层结构
-        all_deltaEs = np.random.rand(num_samples) * 15 + 5  # ΔE在5-20之间
-        all_deltaEDs = np.random.rand(num_samples) * 20 + 10  # ΔED在10-30之间
+        # Generate mock data
+        all_thicknesses = np.random.rand(num_samples, 4) * 100  # 4-layer structure
+        all_deltaEs = np.random.rand(num_samples) * 15 + 5  # ΔE between 5-20
+        all_deltaEDs = np.random.rand(num_samples) * 20 + 10  # ΔED between 10-30
 
-        # 生成模拟颜色数据
+        # Generate mock color data
         all_pred_labs_amorphous = np.random.rand(num_samples, 3) * 100
-        all_pred_labs_amorphous[:, 0] = np.random.rand(num_samples) * 50 + 25  # L*在25-75之间
-        all_pred_labs_amorphous[:, 1] = np.random.rand(num_samples) * 50 - 25  # a*在-25到25之间
-        all_pred_labs_amorphous[:, 2] = np.random.rand(num_samples) * 50 - 25  # b*在-25到25之间
+        all_pred_labs_amorphous[:, 0] = np.random.rand(num_samples) * 50 + 25  # L* between 25-75
+        all_pred_labs_amorphous[:, 1] = np.random.rand(num_samples) * 50 - 25  # a* between -25 and 25
+        all_pred_labs_amorphous[:, 2] = np.random.rand(num_samples) * 50 - 25  # b* between -25 and 25
 
         all_pred_labs_crystalline = all_pred_labs_amorphous + np.random.randn(num_samples, 3) * 10
 
         return (all_thicknesses, all_deltaEs, all_deltaEDs,
                 all_pred_labs_amorphous, all_pred_labs_crystalline)
 
-    # 准备目标Lab数据
+    # Prepare the target Lab data
     target_lab_np = np.array(target_lab).flatten()
     labs_batch = np.tile(target_lab_np, (num_samples, 1)).astype(np.float32)
 
-    # 生成随机z值
+    # Generate random z values
     z_values = torch.randn(num_samples, 2).to(device)
 
-    # 应用归一化
+    # Apply normalization
     input_data = (labs_batch - y_mean) / y_std
     labs = torch.from_numpy(input_data.astype(np.float32)).to(device)
 
-    # 生成设计
+    # Generate designs
     with torch.no_grad():
         outputs = generator_model(z_values, labs)
 
-    # 后处理
+    # Post-processing
     preds = outputs.cpu().numpy()
-    preds[:, 0] *= 200  # 解归一化厚度
-    preds[:, 1] *= 50  # 解归一化厚度
-    preds[:, 2] *= 100  # 解归一化厚度
-    preds[:, 3] *= 100  # 解归一化厚度
+    preds[:, 0] *= 200  # denormalize thickness
+    preds[:, 1] *= 50  # denormalize thickness
+    preds[:, 2] *= 100  # denormalize thickness
+    preds[:, 3] *= 100  # denormalize thickness
 
-    # 计算颜色属性
+    # Compute color attributes
     all_thicknesses = []
     all_deltaEs = []
     all_deltaEDs = []
@@ -158,7 +158,7 @@ def design_layers(generator_model, y_mean, y_std, device, target_lab, num_sample
     all_pred_labs_crystalline = []
 
     for thickness in preds:
-        # 计算颜色属性
+        # Compute color attributes
         deltaE, deltaED, pred_lab_amorphous, pred_lab_crystalline = calculate_color_properties(thickness, target_lab_np)
 
         all_thicknesses.append(thickness)
@@ -174,53 +174,53 @@ def design_layers(generator_model, y_mean, y_std, device, target_lab, num_sample
 
 def calculate_color_properties(thickness, target_lab):
     """
-    计算厚度对应的颜色属性
+    Compute the color attributes for a given thickness
     """
     try:
-        # 这里需要导入实际的Lab计算函数
+        # The actual Lab calculation function needs to be imported here
         from color_calculate import Lab_calculate
 
         thickness_tensor = torch.tensor(thickness, dtype=torch.float32)
         pred_lab_crystalline, pred_lab_amorphous, deltaED = Lab_calculate(thickness_tensor)
 
-        # 计算ΔE（非晶态与目标的差异）
+        # Compute ΔE (difference between the amorphous state and the target)
         deltaE = np.sqrt(np.sum((pred_lab_amorphous - target_lab) ** 2))
 
         return deltaE, deltaED, pred_lab_amorphous, pred_lab_crystalline
     except ImportError:
-        # 模拟计算
+        # Mock calculation
         print("使用模拟颜色属性计算...")
 
-        # 模拟厚度到颜色的转换
-        # 这里使用简单的线性关系作为演示
+        # Mock thickness-to-color mapping
+        # A simple linear relation is used here for demonstration
         thickness_sum = np.sum(thickness)
 
-        # 非晶态颜色：基于厚度和随机偏移
-        base_color = np.array([50, 0, 0])  # 基础颜色
-        thickness_factor = thickness_sum / 100  # 归一化到0-1范围
+        # Amorphous color: based on the thickness plus a random offset
+        base_color = np.array([50, 0, 0])  # base color
+        thickness_factor = thickness_sum / 100  # normalized to the 0-1 range
         random_offset = np.random.randn(3) * 10
 
         pred_lab_amorphous = base_color + thickness_factor * np.array([20, 10, 10]) + random_offset
-        pred_lab_amorphous[0] = max(0, min(100, pred_lab_amorphous[0]))  # L*在0-100之间
-        pred_lab_amorphous[1] = max(-50, min(50, pred_lab_amorphous[1]))  # a*在-50到50之间
-        pred_lab_amorphous[2] = max(-50, min(50, pred_lab_amorphous[2]))  # b*在-50到50之间
+        pred_lab_amorphous[0] = max(0, min(100, pred_lab_amorphous[0]))  # L* between 0-100
+        pred_lab_amorphous[1] = max(-50, min(50, pred_lab_amorphous[1]))  # a* between -50 and 50
+        pred_lab_amorphous[2] = max(-50, min(50, pred_lab_amorphous[2]))  # b* between -50 and 50
 
-        # 晶态颜色：基于非晶态颜色加上差异
-        deltaED = np.random.rand() * 20 + 5  # ΔED在5-25之间
-        color_diff = np.random.randn(3) * 5  # 随机差异
+        # Crystalline color: amorphous color plus a difference
+        deltaED = np.random.rand() * 20 + 5  # ΔED between 5-25
+        color_diff = np.random.randn(3) * 5  # random difference
         pred_lab_crystalline = pred_lab_amorphous + color_diff
         pred_lab_crystalline[0] = max(0, min(100, pred_lab_crystalline[0]))
         pred_lab_crystalline[1] = max(-50, min(50, pred_lab_crystalline[1]))
         pred_lab_crystalline[2] = max(-50, min(50, pred_lab_crystalline[2]))
 
-        # 计算ΔE（非晶态与目标的差异）
+        # Compute ΔE (difference between the amorphous state and the target)
         deltaE = np.sqrt(np.sum((pred_lab_amorphous - target_lab) ** 2))
 
         return deltaE, deltaED, pred_lab_amorphous, pred_lab_crystalline
 
 
 # ================================
-# 🔧 聚类功能
+# 🔧 Clustering utilities
 # ================================
 def filter_by_deltaE_threshold(all_thicknesses, all_deltaEs, all_deltaEDs,
                                all_pred_labs_amorphous, all_pred_labs_crystalline,
@@ -237,7 +237,7 @@ def filter_by_deltaE_threshold(all_thicknesses, all_deltaEs, all_deltaEDs,
 
 def _cluster_kmeans_auto(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, pred_labs_crystalline,
                          min_k=2, max_k=10):
-    """自动KMeans聚类"""
+    """Automatic KMeans clustering"""
     colors = np.array(pred_labs_crystalline)
     if len(colors) < min_k:
         raise ValueError("Not enough samples for clustering.")
@@ -245,7 +245,7 @@ def _cluster_kmeans_auto(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, pr
     scaler = StandardScaler()
     X = scaler.fit_transform(colors)
 
-    # 使用轮廓系数找到最佳k值
+    # Use the silhouette score to find the best k
     best_k, best_sil = min_k, -1
     k_range = range(min_k, min(max_k + 1, len(colors)))
 
@@ -269,45 +269,45 @@ def _cluster_kmeans_auto(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, pr
 
 def _apply_hierarchical_postprocessing(X, labels, distance_threshold=2.0, n_clusters=None):
     """
-    应用层次聚类后处理，将远离簇中心的点重新分类
+    Apply hierarchical clustering post-processing to reclassify points far from their cluster centers
     Args:
-        X: 标准化后的特征矩阵
-        labels: 初始聚类标签
-        distance_threshold: 层次聚类的距离阈值
-        n_clusters: 层次聚类的簇数量（如果指定则忽略distance_threshold）
+        X: standardized feature matrix
+        labels: initial cluster labels
+        distance_threshold: distance threshold for hierarchical clustering
+        n_clusters: number of clusters for hierarchical clustering (overrides distance_threshold if given)
     """
     new_labels = labels.copy()
     unique_labels = np.unique(labels)
 
-    # 处理每个非噪声簇
+    # Process each non-noise cluster
     for label in unique_labels:
-        if label == -1:  # 跳过噪声点
+        if label == -1:  # skip noise points
             continue
 
-        # 获取当前簇的索引
+        # Get the indices of the current cluster
         mask = labels == label
         cluster_indices = np.where(mask)[0]
 
-        if len(cluster_indices) < 5:  # 小簇不进行处理
+        if len(cluster_indices) < 5:  # skip small clusters
             continue
 
-        # 提取当前簇的数据
+        # Extract the data of the current cluster
         cluster_data = X[mask]
 
         try:
-            # 应用层次聚类
+            # Apply hierarchical clustering
             if n_clusters is not None:
-                # 基于指定簇数量进行层次聚类
+                # Hierarchical clustering with the specified number of clusters
                 hierarchical = AgglomerativeClustering(
                     n_clusters=n_clusters,
                     linkage='ward'
                 )
             else:
-                # 基于距离阈值进行层次聚类 - 关键修复：不设置n_clusters参数
-                # 注意：在较新版本的scikit-learn中，设置n_clusters=None可能有问题
-                # 应该完全省略这个参数，或者使用兼容的方式
+                # Hierarchical clustering with a distance threshold - key fix: do not set the n_clusters parameter
+                # Note: in newer scikit-learn versions, setting n_clusters=None may be problematic
+                # It should be omitted entirely, or handled in a compatible way
                 hierarchical = AgglomerativeClustering(
-                    n_clusters=None,  # 显式设置为None
+                    n_clusters=None,  # explicitly set to None
                     distance_threshold=distance_threshold,
                     linkage='average'
                 )
@@ -318,26 +318,26 @@ def _apply_hierarchical_postprocessing(X, labels, distance_threshold=2.0, n_clus
             print(f"警告: 层次聚类失败 ({e})，跳过该簇的后处理")
             continue
 
-        # 如果层次聚类产生了多个子簇，重新分配标签
+        # If hierarchical clustering produced multiple sub-clusters, reassign labels
         unique_sub_labels = np.unique(sub_labels)
         if len(unique_sub_labels) > 1:
-            # 找到最大的子簇作为主要簇，其余作为新簇或噪声
+            # Take the largest sub-cluster as the main cluster; treat the rest as new clusters or noise
             sub_cluster_sizes = [np.sum(sub_labels == sl) for sl in unique_sub_labels]
             main_sub_cluster = unique_sub_labels[np.argmax(sub_cluster_sizes)]
 
-            # 重新分配标签
+            # Reassign labels
             for i, sub_label in enumerate(sub_labels):
                 if sub_label != main_sub_cluster:
-                    # 计算点到主要子簇中心的距离
+                    # Compute the distance from the point to the center of the main sub-cluster
                     main_cluster_mask = sub_labels == main_sub_cluster
                     main_cluster_center = np.mean(cluster_data[main_cluster_mask], axis=0)
                     point_distance = np.linalg.norm(cluster_data[i] - main_cluster_center)
 
                     if point_distance > distance_threshold * 2:
-                        # 距离太远，标记为噪声
+                        # Too far away - mark as noise
                         new_labels[cluster_indices[i]] = -1
                     else:
-                        # 距离较近，保持为原簇（可能是边界点）
+                        # Close enough - keep in the original cluster (possibly a border point)
                         pass
 
     changed_count = np.sum(labels != new_labels)
@@ -349,13 +349,13 @@ def _apply_hierarchical_postprocessing(X, labels, distance_threshold=2.0, n_clus
 
 def _cluster_dbscan(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, pred_labs_crystalline,
                     eps='auto', min_samples=5, use_hierarchical_postprocessing=True):
-    """DBSCAN聚类"""
+    """DBSCAN clustering"""
     colors = np.array(pred_labs_crystalline)
     scaler = StandardScaler()
     X = scaler.fit_transform(colors)
 
     if eps == 'auto':
-        # 自动估计eps
+        # Estimate eps automatically
         nn = NearestNeighbors(n_neighbors=min_samples)
         nn.fit(X)
         distances, _ = nn.kneighbors(X)
@@ -366,7 +366,7 @@ def _cluster_dbscan(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, pred_la
     dbs = DBSCAN(eps=eps, min_samples=min_samples)
     labels = dbs.fit_predict(X)
 
-    # 应用层次聚类后处理
+    # Apply hierarchical clustering post-processing
     if use_hierarchical_postprocessing:
         print("Applying hierarchical clustering postprocessing...")
         try:
@@ -383,7 +383,7 @@ def _cluster_dbscan(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, pred_la
 
 def _build_cluster_results(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, pred_labs_crystalline, labels,
                            X_scaled):
-    """构建聚类结果"""
+    """Build the clustering results"""
     unique_labels = [l for l in np.unique(labels) if l != -1]
     cluster_results = []
 
@@ -395,11 +395,11 @@ def _build_cluster_results(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, 
         best_idx_local = np.argmin(deltaEs[mask])
         global_idx = np.where(mask)[0][best_idx_local]
 
-        # 计算非晶态颜色中心
+        # Compute the amorphous-state color center
         cluster_amorphous_colors = amorphous_colors[mask]
         amorphous_center = np.mean(cluster_amorphous_colors, axis=0).tolist()
 
-        # 获取簇内所有厚度
+        # Get all thicknesses in the cluster
         cluster_thicknesses = thicknesses[mask]
         if cluster_thicknesses.ndim == 1:
             cluster_thicknesses = cluster_thicknesses.reshape(-1, 1)
@@ -418,7 +418,7 @@ def _build_cluster_results(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, 
             'cluster_deltaEDs': deltaEDs[mask].tolist()
         })
 
-    # 计算聚类指标
+    # Compute clustering metrics
     valid_mask = labels != -1
     if sum(valid_mask) >= 2 and len(np.unique(labels[valid_mask])) >= 2:
         sil = silhouette_score(X_scaled[valid_mask], labels[valid_mask])
@@ -439,7 +439,7 @@ def _build_cluster_results(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, 
 
 
 def find_max_deltaED_solution(thicknesses, deltaEs, deltaEDs, pred_labs_amorphous, pred_labs_crystalline):
-    """找到ΔED最大的解"""
+    """Find the solution with the maximum ΔED"""
     max_deltaED_idx = np.argmax(deltaEDs)
 
     max_deltaED_solution = {
@@ -455,36 +455,36 @@ def find_max_deltaED_solution(thicknesses, deltaEs, deltaEDs, pred_labs_amorphou
 
 
 # ================================
-# 🎯 精确设计函数 - 全局最优解
+# 🎯 Accurate design function - global optimum
 # ================================
 def generate_accurate_design(
-        target_rgb,  # 目标RGB颜色，格式如 [255, 0, 0]
-        num_samples=5000,  # 采样数量（可以设置得大一些以获得更精确的结果）
-        num_layers=4,  # 层数（由模型决定，这里仅供参考）
-        deltaE_threshold=5.0  # ΔE阈值，用于筛选优质解
+        target_rgb,  # target RGB color, e.g. [255, 0, 0]
+        num_samples=5000,  # number of samples (can be set higher for more accurate results)
+        num_layers=4,  # number of layers (determined by the model; for reference only)
+        deltaE_threshold=5.0  # ΔE threshold for filtering high-quality solutions
 ):
     """
-    设计出全局最优解（ΔE最小的解），返回的数据格式和主函数相同
+    Design the global optimum (the solution with the minimum ΔE); the returned data format is the same as the main function
 
     Args:
-        target_rgb: 目标RGB颜色 [R, G, B]，范围0-255
-        num_samples: 采样数量
-        num_layers: 层数
-        deltaE_threshold: ΔE过滤阈值
+        target_rgb: target RGB color [R, G, B], range 0-255
+        num_samples: number of samples
+        num_layers: number of layers
+        deltaE_threshold: ΔE filter threshold
 
     Returns:
-        dict: 包含设计结果的信息，格式与design_and_cluster_by_color相同
+        dict: design results, in the same format as design_and_cluster_by_color
     """
     print("=" * 60)
     print("🎯 精确设计 - 寻找全局最优解（ΔE最小）")
     print("=" * 60)
 
-    # 1. RGB转Lab
+    # 1. Convert RGB to Lab
     print(f"1. 目标RGB颜色: {target_rgb}")
     target_lab = rgb_to_lab(target_rgb)
     print(f"   转换到Lab颜色空间: {[round(x, 2) for x in target_lab]}")
 
-    # 2. 加载模型
+    # 2. Load the model
     print("\n2. 加载生成器模型...")
     generator_model, y_mean, y_std, device = load_design_model()
 
@@ -493,13 +493,13 @@ def generate_accurate_design(
     else:
         print("   ✓ 模型加载成功")
 
-    # 3. 生成设计
+    # 3. Generate designs
     print(f"\n3. 生成{num_samples}个设计样本...")
     all_thicknesses, all_deltaEs, all_deltaEDs, all_pred_labs_amorphous, all_pred_labs_crystalline = \
         design_layers(generator_model, y_mean, y_std, device, target_lab, num_samples)
     print(f"   ✓ 生成完成，得到{len(all_thicknesses)}个设计")
 
-    # 4. 过滤数据（使用较严格的阈值）
+    # 4. Filter data (with a stricter threshold)
     print(f"\n4. 过滤数据 (ΔE阈值 = {deltaE_threshold})...")
     filtered = filter_by_deltaE_threshold(
         all_thicknesses, all_deltaEs, all_deltaEDs,
@@ -519,7 +519,7 @@ def generate_accurate_design(
         filtered_pred_labs_amorphous = all_pred_labs_amorphous
         filtered_pred_labs_crystalline = all_pred_labs_crystalline
 
-    # 5. 找到全局最优解（ΔE最小）
+    # 5. Find the global optimum (minimum ΔE)
     print("\n5. 寻找全局最优解（ΔE最小）...")
     global_best_idx = np.argmin(filtered_deltaEs)
     global_best_solution = {
@@ -534,7 +534,7 @@ def generate_accurate_design(
     print(f"   ✓ 全局最优ΔE: {global_best_solution['deltaE']:.3f}")
     print(f"     对应ΔED: {global_best_solution['deltaED']:.3f}")
 
-    # 6. 找到ΔED最大的解（在满足ΔE阈值的样本中）
+    # 6. Find the solution with the maximum ΔED (among samples meeting the ΔE threshold)
     print("\n6. 寻找ΔED最大的解...")
     if len(filtered_deltaEDs) > 0:
         max_deltaED_idx = np.argmax(filtered_deltaEDs)
@@ -558,29 +558,29 @@ def generate_accurate_design(
         }
         print("   ⚠️ 没有找到ΔED最大的解")
 
-    # 7. 计算统计信息
+    # 7. Compute statistics
     print("\n7. 计算统计信息...")
 
-    # 构建最终结果
+    # Build the final result
     result = {
         'target_info': {
             'target_rgb': target_rgb,
             'target_lab': target_lab,
             'num_samples': num_samples,
             'num_layers': num_layers,
-            'clustering_method': 'none',  # 没有使用聚类
+            'clustering_method': 'none',  # no clustering used
             'deltaE_threshold': deltaE_threshold
         },
-        'clustering_metrics': None,  # 没有聚类指标
+        'clustering_metrics': None,  # no clustering metrics
         'solutions': {
-            'cluster_best': [],  # 空列表，因为没有聚类
+            'cluster_best': [],  # empty list, since there is no clustering
             'global_best': global_best_solution,
             'max_deltaED': max_deltaED_solution
         },
         'statistics': {
             'total_samples': len(all_thicknesses),
             'filtered_samples': len(filtered_thicknesses),
-            'num_clusters': 0,  # 没有聚类
+            'num_clusters': 0,  # no clustering
             'avg_deltaE_filtered': float(np.mean(filtered_deltaEs)) if len(filtered_deltaEs) > 0 else None,
             'avg_deltaED_filtered': float(np.mean(filtered_deltaEDs)) if len(filtered_deltaEDs) > 0 else None,
             'min_deltaE': float(np.min(all_deltaEs)) if len(all_deltaEs) > 0 else None,
@@ -600,40 +600,40 @@ def generate_accurate_design(
 
 
 # ================================
-# 🚀 主函数 - 设计并聚类
+# 🚀 Main function - design and cluster
 # ================================
 def design_and_cluster_by_color(
-        target_rgb,  # 目标RGB颜色，格式如 [255, 0, 0]
-        num_samples=1000,  # 采样数量
-        num_layers=4,  # 层数（由模型决定，这里仅供参考）
-        clustering_method='dbscan',  # 聚类方法: 'kmeans_auto' 或 'dbscan'
-        deltaE_threshold=10.0,  # ΔE过滤阈值
-        **clustering_params  # 聚类参数
+        target_rgb,  # target RGB color, e.g. [255, 0, 0]
+        num_samples=1000,  # number of samples
+        num_layers=4,  # number of layers (determined by the model; for reference only)
+        clustering_method='dbscan',  # clustering method: 'kmeans_auto' or 'dbscan'
+        deltaE_threshold=10.0,  # ΔE filter threshold
+        **clustering_params  # clustering parameters
 ):
     """
-    主函数：根据目标RGB颜色设计多层结构并进行聚类分析
+    Main function: design multilayer structures for a target RGB color and run cluster analysis
 
     Args:
-        target_rgb: 目标RGB颜色 [R, G, B]，范围0-255
-        num_samples: 采样数量
-        num_layers: 层数
-        clustering_method: 聚类方法 ('kmeans_auto' 或 'dbscan')
-        deltaE_threshold: ΔE过滤阈值
-        **clustering_params: 聚类参数
+        target_rgb: target RGB color [R, G, B], range 0-255
+        num_samples: number of samples
+        num_layers: number of layers
+        clustering_method: clustering method ('kmeans_auto' or 'dbscan')
+        deltaE_threshold: ΔE filter threshold
+        **clustering_params: clustering parameters
 
     Returns:
-        dict: 包含聚类结果和ΔED最大解的信息
+        dict: clustering results and the maximum-ΔED solution
     """
     print("=" * 60)
     print("🎨 GST多层结构颜色设计聚类分析")
     print("=" * 60)
 
-    # 1. RGB转Lab
+    # 1. Convert RGB to Lab
     print(f"1. 目标RGB颜色: {target_rgb}")
     target_lab = rgb_to_lab(target_rgb)
     print(f"   转换到Lab颜色空间: {[round(x, 2) for x in target_lab]}")
 
-    # 2. 加载模型
+    # 2. Load the model
     print("\n2. 加载生成器模型...")
     generator_model, y_mean, y_std, device = load_design_model()
 
@@ -642,13 +642,13 @@ def design_and_cluster_by_color(
     else:
         print("   ✓ 模型加载成功")
 
-    # 3. 生成设计
+    # 3. Generate designs
     print(f"\n3. 生成{num_samples}个设计样本...")
     all_thicknesses, all_deltaEs, all_deltaEDs, all_pred_labs_amorphous, all_pred_labs_crystalline = \
         design_layers(generator_model, y_mean, y_std, device, target_lab, num_samples)
     print(f"   ✓ 生成完成，得到{len(all_thicknesses)}个设计")
 
-    # 4. 过滤数据
+    # 4. Filter data
     print(f"\n4. 过滤数据 (ΔE阈值 = {deltaE_threshold})...")
     filtered = filter_by_deltaE_threshold(
         all_thicknesses, all_deltaEs, all_deltaEDs,
@@ -664,7 +664,7 @@ def design_and_cluster_by_color(
         print("   ⚠️ 过滤后样本过少，无法进行有效聚类")
         return None
 
-    # 5. 聚类
+    # 5. Clustering
     print(f"\n5. 使用{clustering_method}进行聚类...")
     try:
         if clustering_method == 'kmeans_auto':
@@ -675,7 +675,7 @@ def design_and_cluster_by_color(
                 max_k=clustering_params.get('max_k', 10)
             )
         elif clustering_method == 'dbscan':
-            # 传递聚类参数，特别是层次聚类后处理参数
+            # Pass clustering parameters, especially the hierarchical post-processing flag
             use_hierarchical = clustering_params.get('use_hierarchical_postprocessing', True)
             eps_value = clustering_params.get('eps', 'auto')
             min_samples_value = clustering_params.get('min_samples', 5)
@@ -703,7 +703,7 @@ def design_and_cluster_by_color(
         print(f"   ✗ 聚类失败: {e}")
         return None
 
-    # 6. 找到ΔED最大的解
+    # 6. Find the solution with the maximum ΔED
     print("\n6. 寻找ΔED最大的解...")
     max_deltaED_solution = find_max_deltaED_solution(
         filtered_thicknesses, filtered_deltaEs, filtered_deltaEDs,
@@ -711,10 +711,10 @@ def design_and_cluster_by_color(
     )
     print(f"   ✓ ΔED最大值: {max_deltaED_solution['deltaED']:.3f}")
 
-    # 7. 整理结果
+    # 7. Organize the results
     print("\n7. 整理结果...")
 
-    # 提取各个簇的最优解
+    # Extract the best solution of each cluster
     cluster_best_solutions = []
     for cluster in cluster_results:
         solution = {
@@ -731,7 +731,7 @@ def design_and_cluster_by_color(
         }
         cluster_best_solutions.append(solution)
 
-    # 全局最优解（ΔE最小）
+    # Global optimum (minimum ΔE)
     global_best_idx = np.argmin(filtered_deltaEs)
     global_best_solution = {
         'type': 'global_best',
@@ -742,7 +742,7 @@ def design_and_cluster_by_color(
         'pred_lab_crystalline': filtered_pred_labs_crystalline[global_best_idx].tolist()
     }
 
-    # 构建最终结果
+    # Build the final result
     result = {
         'target_info': {
             'target_rgb': target_rgb,
@@ -777,7 +777,7 @@ def design_and_cluster_by_color(
 
 
 def print_detailed_results(result):
-    """打印详细结果"""
+    """Print detailed results"""
     if result is None:
         print("没有可用的结果")
         return
@@ -786,7 +786,7 @@ def print_detailed_results(result):
     print("📊 详细结果分析")
     print("=" * 60)
 
-    # 目标信息
+    # Target info
     target = result['target_info']
     print(f"\n🎯 目标信息:")
     print(f"   目标RGB: {target['target_rgb']}")
@@ -798,7 +798,7 @@ def print_detailed_results(result):
         print(f"   聚类方法: {target['clustering_method']}")
         print(f"   ΔE阈值: {target['deltaE_threshold']}")
 
-    # 统计信息
+    # Statistics
     stats = result['statistics']
     print(f"\n📈 统计信息:")
     print(f"   总样本数: {stats['total_samples']}")
@@ -825,7 +825,7 @@ def print_detailed_results(result):
     if 'max_deltaED_filtered' in stats and stats['max_deltaED_filtered'] is not None:
         print(f"   最大ΔED（过滤）: {stats['max_deltaED_filtered']:.3f}")
 
-    # 聚类指标（如果有）
+    # Clustering metrics (if any)
     metrics = result['clustering_metrics']
     if metrics is not None:
         print(f"\n📊 聚类指标:")
@@ -833,7 +833,7 @@ def print_detailed_results(result):
         print(f"   Calinski-Harabasz指数: {metrics['calinski_harabasz_score']:.1f}")
         print(f"   Davies-Bouldin指数: {metrics['davies_bouldin_score']:.3f}")
 
-    # 各簇最优解（如果有）
+    # Best solution of each cluster (if any)
     solutions = result['solutions']
 
     if 'cluster_best' in solutions and len(solutions['cluster_best']) > 0:
@@ -845,7 +845,7 @@ def print_detailed_results(result):
             print(f"     非晶态颜色(Lab): {[round(x, 2) for x in sol['pred_lab_amorphous']]}")
             print(f"     晶态颜色(Lab): {[round(x, 2) for x in sol['pred_lab_crystalline']]}")
 
-    # 全局最优解
+    # Global optimum
     if 'global_best' in solutions:
         global_best = solutions['global_best']
         print(f"\n🥇 全局最优解 (最小ΔE):")
@@ -854,7 +854,7 @@ def print_detailed_results(result):
         print(f"   非晶态颜色(Lab): {[round(x, 2) for x in global_best['pred_lab_amorphous']]}")
         print(f"   晶态颜色(Lab): {[round(x, 2) for x in global_best['pred_lab_crystalline']]}")
 
-    # ΔED最大解
+    # Maximum-ΔED solution
     if 'max_deltaED' in solutions:
         max_deltaED = solutions['max_deltaED']
         if max_deltaED['deltaED'] is not None:
@@ -868,31 +868,31 @@ def print_detailed_results(result):
 
 
 # ================================
-# 📋 使用示例
+# 📋 Usage examples
 # ================================
 if __name__ == "__main__":
     print("=" * 60)
     print("GST多层结构颜色设计系统")
     print("=" * 60)
 
-    # 示例1: 使用精确设计函数
+    # Example 1: use the accurate design function
     print("\n1. 精确设计示例（全局最优解）")
     print("-" * 40)
 
-    target_rgb = [155, 90, 150]  # 红色
+    target_rgb = [155, 90, 150]  # red
     accurate_result = generate_accurate_design(
         target_rgb=target_rgb,
-        num_samples=500,  # 使用更多样本以获得更精确的结果
-        deltaE_threshold=5.0  # 较严格的ΔE阈值
+        num_samples=500,  # use more samples for more accurate results
+        deltaE_threshold=5.0  # stricter ΔE threshold
     )
 
     print_detailed_results(accurate_result)
 
-    # 示例2: 使用聚类设计函数
+    # Example 2: use the clustering design function
     print("\n\n2. 聚类设计示例")
     print("-" * 40)
 
-    target_rgb = [60, 70, 165]  # 蓝色
+    target_rgb = [60, 70, 165]  # blue
     cluster_result = design_and_cluster_by_color(
         target_rgb=target_rgb,
         num_samples=100,
@@ -904,11 +904,11 @@ if __name__ == "__main__":
 
     print_detailed_results(cluster_result)
 
-    # 示例3: 使用DBSCAN聚类
+    # Example 3: use DBSCAN clustering
     print("\n\n3. DBSCAN聚类设计示例")
     print("-" * 40)
 
-    target_rgb = [100, 155, 150]  # 绿色
+    target_rgb = [100, 155, 150]  # green
     dbscan_result = design_and_cluster_by_color(
         target_rgb=target_rgb,
         num_samples=150,
@@ -927,34 +927,34 @@ if __name__ == "__main__":
 
 def generate_camouflage_pattern(amorphous_colors, crystalline_colors, environment_features, pattern_type='digital', size=(400, 300)):
     """
-    生成迷彩图案 - 使用两组颜色
+    Generate a camouflage pattern - using two sets of colors
 
-    输入:
-        amorphous_colors: list[tuple] - 非晶态颜色列表
-        crystalline_colors: list[tuple] - 晶态颜色列表
-        environment_features: dict - 环境纹理特征
-        pattern_type: str - 图案类型
-        size: tuple - 生成图案尺寸
+    Args:
+        amorphous_colors: list[tuple] - amorphous-state colors
+        crystalline_colors: list[tuple] - crystalline-state colors
+        environment_features: dict - environment texture features
+        pattern_type: str - pattern type
+        size: tuple - generated pattern size
 
-    输出:
-        np.array - 迷彩图案图像
-        dict - 图案参数
+    Returns:
+        np.array - camouflage pattern image
+        dict - pattern parameters
     """
     height, width = size
 
-    # 合并两种颜色
+    # Merge the two color sets
     all_colors = amorphous_colors + crystalline_colors
 
-    # 创建基础图案
+    # Create the base pattern
     pattern = np.zeros((height, width, 3), dtype=np.uint8)
 
-    # 根据图案类型生成不同的图案
+    # Generate different patterns according to the pattern type
     if pattern_type == 'digital':
-        # 数码迷彩：矩形块
+        # Digital camouflage: rectangular blocks
         block_size = max(10, int(30 * environment_features.get('texture_density', 0.5)))
         for y in range(0, height, block_size):
             for x in range(0, width, block_size):
-                # 交替使用非晶态和晶态颜色
+                # Alternate between amorphous and crystalline colors
                 if (x // block_size + y // block_size) % 2 == 0 and amorphous_colors:
                     color_idx = (x // block_size) % len(amorphous_colors)
                     color = amorphous_colors[color_idx]
@@ -969,7 +969,7 @@ def generate_camouflage_pattern(amorphous_colors, crystalline_colors, environmen
                 pattern[y:y+block_h, x:x+block_w] = color
 
     else:
-        # 其他图案类型使用所有颜色
+        # Other pattern types use all colors
         num_spots = int((width * height) / (100 * environment_features.get('texture_density', 0.5)))
         for _ in range(num_spots):
             color_idx = random.randint(0, len(all_colors) - 1)
@@ -978,7 +978,7 @@ def generate_camouflage_pattern(amorphous_colors, crystalline_colors, environmen
             center_y = random.randint(0, height - 1)
             radius = random.randint(5, 20)
 
-            # 绘制圆形斑点
+            # Draw a circular spot
             for dy in range(-radius, radius + 1):
                 for dx in range(-radius, radius + 1):
                     if dx*dx + dy*dy <= radius*radius:
@@ -987,7 +987,7 @@ def generate_camouflage_pattern(amorphous_colors, crystalline_colors, environmen
                         if 0 <= x < width and 0 <= y < height:
                             pattern[y, x] = color
 
-    # 图案参数
+    # Pattern parameters
     pattern_params = {
         'pattern_type': pattern_type,
         'amorphous_colors_count': len(amorphous_colors),
@@ -1001,7 +1001,6 @@ def generate_camouflage_pattern(amorphous_colors, crystalline_colors, environmen
 
 
 """
-新增的迷彩生成函数接口
+Interface for the newly added camouflage generation functions
 """
-
 

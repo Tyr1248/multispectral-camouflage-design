@@ -88,16 +88,16 @@ class DistributionEvaluator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        self.lab_regressor = NeuralNetwork()  # 预训练的Lab regressor
-        # 注意：需要确保Lab regressor支持4维厚度输入
+        self.lab_regressor = NeuralNetwork()  # pre-trained Lab regressor
+        # Note: the Lab regressor must support 4-dimensional thickness input
         self.lab_regressor.load_state_dict(torch.load('weight/lab_regressor.pth'))
-        for param in self.lab_regressor.parameters():  # 冻结预训练模型参数
+        for param in self.lab_regressor.parameters():  # freeze pre-trained model parameters
             param.requires_grad = False
         self.evaluator = DistributionEvaluator()
 
     def forward(self, thickness, real_lab=None):
         if real_lab == None:
-            pred_lab = self.lab_regressor(thickness)  # 预测Lab颜色
+            pred_lab = self.lab_regressor(thickness)  # predict Lab color
             return self.evaluator(thickness), pred_lab
         else:
             return self.evaluator(thickness), real_lab

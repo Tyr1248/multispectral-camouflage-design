@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""NSGA-II 光学薄膜多目标优化器
+"""NSGA-II multi-objective optimizer for optical thin films
 
-支持两种优化模式:
-- "periodic": 周期性结构 — 仅Ge/ZnS, 强制交替
-- "penalty":  层数惩罚 — 8种材料, 层数惩罚项
+Supports two optimization modes:
+- "periodic": periodic structure — only Ge/ZnS, forced alternation
+- "penalty":  layer-count penalty — 8 materials, penalty term on layer count
 
-修复内容:
-- 拥挤距离按原始索引正确分配
-- 交叉与变异完全分离
-- 进度打印包含第一前沿示例解
-- save_solutions 保存整个第一前沿
+Fixes:
+- Crowding distances are correctly assigned by original index
+- Crossover and mutation are fully separated
+- Progress output includes example solutions from the first front
+- save_solutions saves the entire first front
 """
 
 import math
@@ -53,7 +53,7 @@ class NSGA2Optimizer:
         with open(os.path.join(self.results_dir, "optimization_config.txt"), 'w') as f:
             f.write(str(self.config))
 
-    # ========== 非支配排序与拥挤距离 ==========
+    # ========== Non-dominated sorting and crowding distance ==========
 
     def fast_non_dominated_sort(self, values1, values2, values3):
         size = len(values1)
@@ -94,7 +94,7 @@ class NSGA2Optimizer:
         return front
 
     def crowding_distance(self, values1, values2, values3, front):
-        """计算拥挤距离，返回与front顺序一致的列表。已修复索引错位问题。"""
+        """Compute crowding distances, returned as a list aligned with the order of front. Index-misalignment bug fixed."""
         if len(front) <= 2:
             return [float('inf')] * len(front)
 
@@ -118,7 +118,7 @@ class NSGA2Optimizer:
                 return rank
         return len(fronts)
 
-    # ========== 选择算子 ==========
+    # ========== Selection operator ==========
 
     def improved_tournament_selection(self, population_size, fronts, crowding_distances):
         tournament_size = 2
@@ -132,7 +132,7 @@ class NSGA2Optimizer:
         candidates.sort(key=sort_key)
         return candidates[0]
 
-    # ========== 交叉（仅重组+修复，不含变异）==========
+    # ========== Crossover (recombination + repair only, no mutation) ==========
 
     def activation_aware_crossover(self, a, b):
         child = np.zeros_like(a)
@@ -166,7 +166,7 @@ class NSGA2Optimizer:
     def crossover(self, a, b):
         return self.activation_aware_crossover(a, b)
 
-    # ========== 变异（外部调用，与交叉分离）==========
+    # ========== Mutation (called externally, separated from crossover) ==========
 
     def mutation(self, solution):
         if random.random() < 0.2:
@@ -174,7 +174,7 @@ class NSGA2Optimizer:
         solution = self.optical_problem.repair_adjacent_layers_in_decision(solution)
         return solution
 
-    # ========== 种群初始化与评估 ==========
+    # ========== Population initialization and evaluation ==========
 
     def initialize_optical_population(self):
         return [self.optical_problem.create_optical_film_decision()
@@ -199,7 +199,7 @@ class NSGA2Optimizer:
                 return True
         return False
 
-    # ========== 主优化循环 ==========
+    # ========== Main optimization loop ==========
 
     def optimize(self):
         mode_desc = "周期性结构 (Ge/ZnS交替)" if self.mode == "periodic" else "层数惩罚 (8种材料)"
@@ -376,7 +376,7 @@ class NSGA2Optimizer:
 
         fig = plt.figure(figsize=(18, 6))
 
-        # 3D: 第一前沿
+        # 3D: first front
         ax1 = fig.add_subplot(131, projection='3d')
         first = fronts[0]
         o1f = [obj1[i] for i in first]
@@ -386,7 +386,7 @@ class NSGA2Optimizer:
         ax1.set_title('First Pareto Front')
         ax1.set_xlabel('Band1'); ax1.set_ylabel('Band2'); ax1.set_zlabel('Band3')
 
-        # 3D: 前三个前沿
+        # 3D: first three fronts
         ax2 = fig.add_subplot(132, projection='3d')
         colors = ['red', 'blue', 'green']
         for i in range(min(3, len(fronts))):
@@ -398,7 +398,7 @@ class NSGA2Optimizer:
         ax2.set_title('First Three Pareto Fronts')
         ax2.legend()
 
-        # 3D: 所有解按前沿着色
+        # 3D: all solutions colored by front
         ax3 = fig.add_subplot(133, projection='3d')
         front_colors = [self.get_front_rank(idx, fronts) for idx in range(len(population))]
         ax3.scatter(obj1, obj2, obj3, c=front_colors, cmap='plasma', s=20, alpha=0.6)
@@ -410,7 +410,7 @@ class NSGA2Optimizer:
         plt.close()
 
     def save_solutions(self, population, obj1_values, obj2_values, obj3_values, fronts):
-        """保存整个第一帕累托前沿"""
+        """Save the entire first Pareto front"""
         os.makedirs(self.results_dir, exist_ok=True)
         print("保存解决方案（完整第一前沿）...")
         solutions_data = []
@@ -448,17 +448,17 @@ class NSGA2Optimizer:
         print(f"解决方案已保存至: {solutions_file} (共 {len(fronts[0])} 个非支配解)")
 
 
-# ========== 主程序入口 ==========
+# ========== Main program entry point ==========
 if __name__ == "__main__":
     import sys
 
-    # 从命令行或默认选择模式
+    # Select mode from the command line or use the default
     mode = "penalty"
     if len(sys.argv) > 1 and sys.argv[1] in ("periodic", "penalty"):
         mode = sys.argv[1]
 
     config = get_default_config(mode=mode)
-    # 可调整 config.pop_size 等参数
+    # Parameters such as config.pop_size can be adjusted here
     optimizer = NSGA2Optimizer(config)
     pop, o1, o2, o3, fronts = optimizer.optimize()
     optimizer.visualize_results(pop, o1, o2, o3, fronts)

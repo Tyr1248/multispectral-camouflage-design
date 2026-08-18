@@ -17,12 +17,12 @@ except ImportError as e:
 
 def convert_to_serializable(obj):
     """
-    将对象转换为 JSON 可序列化的格式
+    Convert an object to a JSON-serializable format.
 
-    参数:
-        obj: 任意类型的对象
-    返回:
-        JSON 可序列化的对象
+    Args:
+        obj: Object of any type.
+    Returns:
+        JSON-serializable object.
     """
     if isinstance(obj, (np.integer, np.int32, np.int64)):
         return int(obj)
@@ -44,14 +44,14 @@ def replace_colors_in_pattern(pattern: np.ndarray,
                               source_colors: List[List[int]],
                               target_colors: List[List[int]]) -> np.ndarray:
     """
-    将图案中的颜色从源颜色替换为目标颜色
+    Replace colors in a pattern from source colors to target colors.
 
-    参数:
-        pattern: 输入图案，形状 (H, W, 3)，dtype=np.uint8
-        source_colors: 源颜色列表，长度=n_colors，每个颜色为 [R, G, B]
-        target_colors: 目标颜色列表，长度=n_colors，每个颜色为 [R, G, B]
-    返回:
-        result: 替换后的图案，形状 (H, W, 3)，dtype=np.uint8
+    Args:
+        pattern: Input pattern, shape (H, W, 3), dtype=np.uint8.
+        source_colors: Source color list, length=n_colors, each color is [R, G, B].
+        target_colors: Target color list, length=n_colors, each color is [R, G, B].
+    Returns:
+        result: Pattern after replacement, shape (H, W, 3), dtype=np.uint8.
     """
     if len(source_colors) != len(target_colors):
         raise ValueError(f"颜色列表长度不匹配：source={len(source_colors)}, target={len(target_colors)}")
@@ -80,23 +80,23 @@ def generate_camouflage_pattern(
         color_budget: List[float]
 ) -> Dict[str, Any]:
     """
-    生成迷彩图案（使用固定的颜色预算，不再依赖环境图像）
+    Generate camouflage patterns (uses a fixed color budget; no environment image).
 
-    参数:
-        amorphous_colors: 非晶态颜色列表，长度=n_colors，每个颜色为 [R, G, B]
-        crystalline_colors: 晶态颜色列表，长度=n_colors，每个颜色为 [R, G, B]
-        color_budget: 颜色预算列表，长度=n_colors，表示各颜色的使用比例（自动归一化）
+    Args:
+        amorphous_colors: Amorphous-state color list, length=n_colors, each color is [R, G, B].
+        crystalline_colors: Crystalline-state color list, length=n_colors, each color is [R, G, B].
+        color_budget: Color budget list, length=n_colors, usage ratio per color (auto-normalized).
 
-    返回:
-        result: 字典，包含以下键：
-            - 'amorphous_pattern': np.ndarray, 形状 (1024, 1024, 3), dtype=np.uint8
-            - 'crystalline_pattern': np.ndarray, 形状 (1024, 1024, 3), dtype=np.uint8
+    Returns:
+        result: Dictionary with the following keys:
+            - 'amorphous_pattern': np.ndarray, shape (1024, 1024, 3), dtype=np.uint8
+            - 'crystalline_pattern': np.ndarray, shape (1024, 1024, 3), dtype=np.uint8
             - 'pattern_size': Tuple[int, int], (1024, 1024)
-            - 'color_count': int, 颜色数量
-            - 'environment_used': bool, 固定为 False
-            - 'color_budget': List[float], 归一化后的颜色预算
+            - 'color_count': int, number of colors
+            - 'environment_used': bool, always False
+            - 'color_budget': List[float], normalized color budget
     """
-    # 输入验证
+    # Input validation
     if len(amorphous_colors) != len(crystalline_colors):
         raise ValueError(
             f"颜色列表长度不匹配：amorphous={len(amorphous_colors)}, crystalline={len(crystalline_colors)}")
@@ -106,18 +106,18 @@ def generate_camouflage_pattern(
 
     color_count = len(amorphous_colors)
 
-    # 将颜色转换为 numpy 数组
+    # Convert colors to numpy arrays
     amorphous_colors_rgb = np.array(amorphous_colors, dtype=np.uint8)
     crystalline_colors_rgb = np.array(crystalline_colors, dtype=np.uint8)
 
-    # 归一化颜色预算
+    # Normalize the color budget
     budget = np.array(color_budget, dtype=float)
     budget = budget / np.sum(budget)
     print(f"使用固定颜色预算：{budget.tolist()}")
 
-    # ========== 尺寸参数 ==========
-    base_size = 256  # 初始画布：256×256
-    upscale_factor = 4  # 上采样倍数：4x
+    # ========== Size parameters ==========
+    base_size = 256  # initial canvas: 256x256
+    upscale_factor = 4  # upscaling factor: 4x
     final_size = base_size * upscale_factor  # 1024×1024
     base_seed = 2026
 
@@ -145,7 +145,7 @@ def generate_camouflage_pattern(
             continue
 
     if not final_patterns:
-        # 失败回退：生成垂直条纹
+        # Fallback: generate vertical stripes
         amorphous_pattern = np.zeros((final_size, final_size, 3), dtype=np.uint8)
         for i in range(color_count):
             start_x = (final_size // color_count) * i
@@ -154,12 +154,12 @@ def generate_camouflage_pattern(
     else:
         amorphous_pattern = final_patterns[0]
 
-    # 生成晶态迷彩图案
+    # Generate the crystalline-state camouflage pattern
     crystalline_pattern = replace_colors_in_pattern(
         amorphous_pattern, amorphous_colors, crystalline_colors
     )
 
-    # 准备返回结果
+    # Prepare the result
     result = {
         'amorphous_pattern': amorphous_pattern,
         'crystalline_pattern': crystalline_pattern,
@@ -173,7 +173,7 @@ def generate_camouflage_pattern(
 
 
 def main():
-    """示例用法"""
+    """Example usage."""
     amorphous_colors =  [
     [
       167,
@@ -230,7 +230,7 @@ def main():
         color_budget=fixed_budget
     )
 
-    # 保存结果
+    # Save results
     timestamp = datetime.now().strftime('%Y%m%d_%H%M')
     result_dir = f'camouflage_results_{timestamp}'
     os.makedirs(result_dir, exist_ok=True)

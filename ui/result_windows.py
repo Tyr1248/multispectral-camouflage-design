@@ -1,5 +1,6 @@
 """
-结果相关窗口 - 最终简化版，仅保留必要控件，窗口1280x800，字体放大
+Result-related windows - final simplified version; only essential widgets
+kept, 1280x800 window, enlarged fonts.
 """
 import sys
 import time
@@ -27,34 +28,34 @@ class ImageClusterWindow(QWidget):
         self.colors = colors
         self.setWindowTitle(title)
 
-        # 窗口尺寸：高度减小1/4，宽度略增以容纳色块
+        # Window size: height reduced by 1/4, width slightly increased to fit color blocks
         self.setGeometry(200, 200, 1200, 640)
 
         layout = QVBoxLayout()
         layout.setSpacing(20)
         layout.setContentsMargins(40, 40, 40, 40)
 
-        # 标题
+        # Title
         title_label = QLabel(title)
         title_label.setStyleSheet("font-size: 30px; font-weight: bold;")
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
 
-        # 颜色数量（字体增大）
+        # Color count (enlarged font)
         count_label = QLabel(f"Total Colors: {len(colors)}")
         count_label.setStyleSheet("color: #666; font-size: 26px; font-weight: bold;")
         count_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(count_label)
 
-        # 颜色块容器 - 使用网格布局使色块均匀分布
+        # Color block container - grid layout distributes blocks evenly
         scroll_area = QScrollArea()
         scroll_widget = QWidget()
 
-        # 计算每行显示的颜色数量（根据窗口宽度）
-        colors_per_row = min(4, len(colors))  # 最多4个一行
+        # Compute colors per row (based on window width)
+        colors_per_row = min(4, len(colors))  # At most 4 per row
         color_layout = QGridLayout()
-        color_layout.setSpacing(50)  # 色块间距增大
-        color_layout.setContentsMargins(60, 30, 60, 30)  # 左右边距保证居中
+        color_layout.setSpacing(50)  # Increased spacing between color blocks
+        color_layout.setContentsMargins(60, 30, 60, 30)  # Left/right margins keep content centered
 
         for i, color in enumerate(colors):
             row = i // colors_per_row
@@ -62,7 +63,7 @@ class ImageClusterWindow(QWidget):
             color_widget = self.create_color_block(color, i)
             color_layout.addWidget(color_widget, row, col, Qt.AlignCenter)
 
-        # 添加弹性行和列使色块居中
+        # Add stretch rows/columns to center the color blocks
         if len(colors) < colors_per_row:
             for col in range(len(colors), colors_per_row):
                 color_layout.setColumnStretch(col, 1)
@@ -74,7 +75,7 @@ class ImageClusterWindow(QWidget):
         scroll_area.setMinimumHeight(280)
         layout.addWidget(scroll_area)
 
-        # 确认按钮
+        # Confirm button
         confirm_btn = QPushButton("Confirm")
         confirm_btn.setStyleSheet("""
             QPushButton {
@@ -94,7 +95,7 @@ class ImageClusterWindow(QWidget):
 
         self.setLayout(layout)
 
-        # 确认弹窗：独立尺寸并居中
+        # Confirmation popup: dedicated size, centered
         apply_popup_geometry(self)
 
     def create_color_block(self, color, index):
@@ -102,15 +103,15 @@ class ImageClusterWindow(QWidget):
         layout = QVBoxLayout()
         layout.setSpacing(8)
         layout.setContentsMargins(10, 10, 10, 10)
-        layout.setAlignment(Qt.AlignCenter)  # 内容居中对齐
+        layout.setAlignment(Qt.AlignCenter)  # Center-align content
 
-        # 颜色索引标签
+        # Color index label
         index_label = QLabel(f"Color {index + 1}")
         index_label.setAlignment(Qt.AlignCenter)
         index_label.setStyleSheet("font-weight: bold; font-size: 22px; color: #2c3e50;")
         layout.addWidget(index_label)
 
-        # 颜色块
+        # Color block
         color_label = QLabel()
         color_label.setFixedSize(160, 160)
         color_label.setStyleSheet("border: 2px solid #333; border-radius: 8px; background: transparent;")
@@ -119,18 +120,18 @@ class ImageClusterWindow(QWidget):
         color_label.setPixmap(pixmap)
         layout.addWidget(color_label)
 
-        # RGB值标签（不换行，宽度适配卡片）
+        # RGB value label (no wrapping, width fits the card)
         rgb_text = f"RGB({color[0]}, {color[1]}, {color[2]})"
         rgb_label = QLabel(rgb_text)
         rgb_label.setAlignment(Qt.AlignCenter)
         rgb_label.setStyleSheet("font-size: 20px; color: #555; font-family: Consolas, monospace;")
-        rgb_label.setFixedWidth(190)  # 适配200px卡片宽度
-        rgb_label.setWordWrap(False)  # 禁用换行
-        rgb_label.setMinimumHeight(25)  # 保证最小高度
+        rgb_label.setFixedWidth(190)  # Fits the 200px card width
+        rgb_label.setWordWrap(False)  # Disable word wrap
+        rgb_label.setMinimumHeight(25)  # Ensure a minimum height
         layout.addWidget(rgb_label)
 
         widget.setLayout(layout)
-        widget.setFixedSize(200, 280)  # 保持原卡片尺寸
+        widget.setFixedSize(200, 280)  # Keep the original card size
         return widget
 
 
@@ -139,20 +140,20 @@ class ColorInputWindow(QWidget):
         super().__init__()
         self.parent_window = parent
         self.color_space = "RGB"
-        self.color_groups = [None]  # 与下拉框初始的 "Group 1" 一一对应
+        self.color_groups = [None]  # Matches the initial "Group 1" combo item one-to-one
         self.current_group = 0
         self.input_container = None
         self.init_ui()
 
     def init_ui(self):
         self.setWindowTitle("Color Input")
-        apply_popup_geometry(self)  # 弹窗独立尺寸并居中
+        apply_popup_geometry(self)  # Popup with dedicated size, centered
 
         layout = QVBoxLayout()
         layout.setSpacing(25)
         layout.setContentsMargins(80, 60, 80, 60)
 
-        # 颜色空间选择
+        # Color space selection
         space_layout = QHBoxLayout()
         space_label = QLabel("Color Space:")
         space_label.setStyleSheet("font-size: 18px;")
@@ -165,7 +166,7 @@ class ColorInputWindow(QWidget):
         space_layout.addStretch()
         layout.addLayout(space_layout)
 
-        # 颜色组管理
+        # Color group management
         group_layout = QHBoxLayout()
         group_label = QLabel("Groups:")
         group_label.setStyleSheet("font-size: 18px;")
@@ -187,18 +188,18 @@ class ColorInputWindow(QWidget):
         group_layout.addStretch()
         layout.addLayout(group_layout)
 
-        # 输入框容器
+        # Input field container
         self.input_container = QWidget()
         self.input_layout = QVBoxLayout()
         self.input_container.setLayout(self.input_layout)
         layout.addWidget(self.input_container)
 
-        # 已输入组数信息
+        # Entered group count info
         self.groups_info_label = QLabel("Entered: 0 / 0 groups")
         self.groups_info_label.setStyleSheet("font-size: 16px; color: #555;")
         layout.addWidget(self.groups_info_label)
 
-        # 确认按钮
+        # Confirm button
         confirm_btn = QPushButton("Confirm All Colors")
         confirm_btn.setStyleSheet("""
             QPushButton {
@@ -269,13 +270,13 @@ class ColorInputWindow(QWidget):
     def add_color_group(self):
         current_color = self.get_current_input_values()
         if current_color:
-            # 保存当前组的输入（防御索引越界）
+            # Save the current group's input (guard against index overflow)
             while len(self.color_groups) <= self.current_group:
                 self.color_groups.append(None)
             self.color_groups[self.current_group] = current_color
 
         self.color_groups.append(None)
-        # 编号始终跟随下拉框实际项数，避免重复编号
+        # Numbering always follows the actual combo item count to avoid duplicates
         self.group_combo.addItem(f"Group {self.group_combo.count() + 1}")
         self.group_combo.setCurrentIndex(self.group_combo.count() - 1)
         self.clear_input_fields()
@@ -286,7 +287,7 @@ class ColorInputWindow(QWidget):
             return
         del self.color_groups[self.current_group]
         self.group_combo.removeItem(self.current_group)
-        # 删除后重新编号，保证 Group 1..N 连续无重复
+        # Renumber after deletion so Group 1..N stays consecutive and unique
         for i in range(self.group_combo.count()):
             self.group_combo.setItemText(i, f"Group {i + 1}")
         if self.current_group >= len(self.color_groups):
@@ -411,7 +412,7 @@ class Step4Window(QWidget):
             safe_flush_stdout()
 
             self.setWindowTitle("Step 4: Final Confirmation")
-            apply_main_geometry(self)  # 统一主窗口尺寸并居中
+            apply_main_geometry(self)  # Apply unified main window size and center
 
             self.setStyleSheet("""
                 QLabel { font-size: 18px; }
@@ -556,9 +557,9 @@ class Step4Window(QWidget):
         self.budget_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.budget_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.budget_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-        self.budget_table.setColumnWidth(0, 180)  # 加宽以容纳更大的色块
+        self.budget_table.setColumnWidth(0, 180)  # Widen to fit larger color blocks
         self.budget_table.verticalHeader().setVisible(False)
-        self.budget_table.verticalHeader().setDefaultSectionSize(60)  # 进一步提高行高
+        self.budget_table.verticalHeader().setDefaultSectionSize(60)  # Further increase row height
         layout.addWidget(self.budget_table)
 
         btn_layout = QHBoxLayout()
@@ -587,7 +588,7 @@ class Step4Window(QWidget):
         self.budget_spinboxes = []
 
         for i, group in enumerate(self.color_groups):
-            # 颜色列：序号 + 色块（继续放大色块）
+            # Color column: index + color block (further enlarged block)
             color_widget = QWidget()
             color_layout = QHBoxLayout()
             color_layout.setContentsMargins(4, 2, 4, 2)
@@ -598,7 +599,7 @@ class Step4Window(QWidget):
             color_layout.addWidget(index_label)
 
             color_label = QLabel()
-            color_label.setFixedSize(60, 36)  # 继续放大
+            color_label.setFixedSize(60, 36)  # Further enlarged
             rgb = group['values']
             color_label.setStyleSheet(f"background-color: rgb({rgb[0]},{rgb[1]},{rgb[2]}); border: 1px solid gray; border-radius: 3px;")
             color_layout.addWidget(color_label)
@@ -607,17 +608,17 @@ class Step4Window(QWidget):
             color_widget.setLayout(color_layout)
             self.budget_table.setCellWidget(i, 0, color_widget)
 
-            # 原始权重（字体继续调小）
+            # Original weight (font further reduced)
             weight = group.get('weight')
             if weight is None:
                 weight = 1.0 / color_count if color_count > 0 else 1.0
             weight_item = QTableWidgetItem(f"{weight:.4f}")
             weight_item.setTextAlignment(Qt.AlignCenter)
             weight_item.setFlags(weight_item.flags() & ~Qt.ItemIsEditable)
-            weight_item.setFont(QFont("", 12))  # 字体调小到12px
+            weight_item.setFont(QFont("", 12))  # Reduce font to 12px
             self.budget_table.setItem(i, 1, weight_item)
 
-            # 用户预算输入
+            # User budget input
             spinbox = QDoubleSpinBox()
             spinbox.setRange(0.0, 1.0)
             spinbox.setSingleStep(0.01)
@@ -698,7 +699,7 @@ class Step4Window(QWidget):
                     target_rgb = color_design.get('target_rgb', [0, 0, 0])
                     group_title = f"Color {color_idx+1}  |  Target RGB: ({target_rgb[0]}, {target_rgb[1]}, {target_rgb[2]})"
                     color_group = QGroupBox(group_title)
-                    color_group.setStyleSheet("font-size: 20px; font-weight: bold;")  # 组标题放大
+                    color_group.setStyleSheet("font-size: 20px; font-weight: bold;")  # Enlarged group title
                     color_layout = QVBoxLayout()
                     color_layout.setSpacing(8)
 
@@ -728,14 +729,14 @@ class Step4Window(QWidget):
 
         sol_type = solution.get('solution_type', 'unknown')
         cluster_id = solution.get('cluster_id')
-        # 簇最优解需要显示真实的簇编号；其余类型不带簇后缀
+        # cluster_best shows the real cluster id; other types have no cluster suffix
         if sol_type == 'cluster_best' and cluster_id is not None and cluster_id >= 0:
             type_display = f"Cluster Best (Cluster {cluster_id + 1})"
         else:
             type_display = self.translate_solution_type(sol_type)
 
         type_label = QLabel(f"Solution {index+1}: {type_display}")
-        type_label.setStyleSheet("font-weight: bold; color: #0066cc; font-size: 22px;")  # 标题继续放大
+        type_label.setStyleSheet("font-weight: bold; color: #0066cc; font-size: 22px;")  # Title further enlarged
         layout.addWidget(type_label)
 
         grid = QGridLayout()
@@ -744,7 +745,7 @@ class Step4Window(QWidget):
 
         deltae = solution.get('deltaE', 0)
         deltae_label = QLabel(f"ΔE: {deltae:.3f}")
-        deltae_label.setStyleSheet("font-size: 20px;")  # 内容字体放大到20px
+        deltae_label.setStyleSheet("font-size: 20px;")  # Content font enlarged to 20px
         grid.addWidget(deltae_label, 0, 0)
 
         deltaed = solution.get('deltaED', 0)
@@ -841,7 +842,7 @@ class Step4Window(QWidget):
             QMessageBox.warning(self, "Warning", f"Failed to select environment image: {str(e)}")
 
     def generate_result(self):
-        """在后台线程中生成最终结果（光谱预计算 + 迷彩生成），主线程显示进度"""
+        """Generate final results (spectrum precomputation + camouflage generation) in a background thread; main thread shows progress"""
         try:
             budget = self.get_current_budget()
             total = sum(budget)
@@ -862,7 +863,7 @@ class Step4Window(QWidget):
             selected_designs = self.selected_designs
 
             def work(report, worker):
-                # 预先计算红外光谱，避免结果窗口打开光谱页时主线程卡顿
+                # Precompute infrared spectra so the main thread does not stall when the result window opens the spectrum tab
                 spectrum_data = {}
                 try:
                     report(-1, "Computing infrared spectra (TMM)...")
@@ -886,7 +887,7 @@ class Step4Window(QWidget):
                 self.result_btn.setText("Generate Final Results")
 
                 if result_data:
-                    # 总设计时长 = Step3 设计生成耗时 + Step4 结果生成耗时
+                    # Total design time = Step3 design generation time + Step4 result generation time
                     result_elapsed = time.perf_counter() - self._result_start
                     step3_elapsed = getattr(self.prev_window, 'design_elapsed', 0)
                     result_data['design_time_seconds'] = round(step3_elapsed + result_elapsed, 2)
@@ -1051,7 +1052,7 @@ class Step4Window(QWidget):
                 return None
 
         except ImportError as e:
-            # 注意：此函数在后台线程中执行，不能创建 Qt 控件，错误信息打印到控制台
+            # Note: this function runs in a background thread; it must not create Qt widgets, so errors are printed to the console
             print(f"Import camouflage module failed: {e}")
             return None
         except Exception as e:

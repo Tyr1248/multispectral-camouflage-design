@@ -1,7 +1,9 @@
 """
-步骤窗口模块 - 统一字体大小与窗口自适应版
-以 Step2Window 为参考，统一使用大字体，按钮宽度自适应，窗口大小根据内容调整。
-包含所有原始功能逻辑，无省略。
+Step windows module - unified font sizes and adaptive windows.
+
+Uses Step2Window as the reference: large fonts throughout, buttons size to
+their content, and windows adjust to their content. Contains all original
+feature logic without omissions.
 """
 
 import time
@@ -20,13 +22,13 @@ from utils.helpers import safe_flush_stdout, get_default_dir, get_image_dir
 
 
 class Step1Window(QWidget):
-    """Step 1: 输入选择窗口 - 字体统一，窗口自适应内容"""
+    """Step 1: input selection window - unified fonts, window adapts to content"""
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
         self.input_type = None
-        self.image_type = None  # 'single' 或 'multiple'
-        self.image_paths = []  # 支持多张图像
+        self.image_type = None  # 'single' or 'multiple'
+        self.image_paths = []  # Supports multiple images
         self.color_groups = []
         self.step2_window = None
         self.cluster_window = None
@@ -36,16 +38,16 @@ class Step1Window(QWidget):
     def init_ui(self):
         self.setWindowTitle("Step 1: Input Selection")
 
-        # 主布局：垂直，大间距，宽边距
+        # Main layout: vertical, large spacing, wide margins
         layout = QVBoxLayout()
         layout.setSpacing(30)
         layout.setContentsMargins(60, 40, 60, 40)
 
-        # === 输入类型选择（两个大单选按钮）===
+        # === Input type selection (two large radio buttons) ===
         input_group = QButtonGroup(self)
         self.image_radio = QRadioButton("Image Input")
         self.color_radio = QRadioButton("Color Input")
-        # 字体 32px，增加内边距
+        # 32px font with extra padding
         radio_style = "font-size: 32px; padding: 12px;"
         self.image_radio.setStyleSheet(radio_style)
         self.color_radio.setStyleSheet(radio_style)
@@ -54,7 +56,7 @@ class Step1Window(QWidget):
         layout.addWidget(self.image_radio)
         layout.addWidget(self.color_radio)
 
-        # === 图像类型选择（仅在图像输入时显示）===
+        # === Image type selection (only shown for image input) ===
         self.image_type_group = QWidget()
         image_type_layout = QVBoxLayout()
         image_type_layout.setContentsMargins(40, 10, 0, 10)
@@ -63,7 +65,7 @@ class Step1Window(QWidget):
         image_type_button_group = QButtonGroup(self)
         self.single_image_radio = QRadioButton("Single Image")
         self.multiple_images_radio = QRadioButton("Multiple Images")
-        # 次级单选按钮字体 28px
+        # Secondary radio buttons use 28px font
         sub_radio_style = "font-size: 28px; padding: 8px;"
         self.single_image_radio.setStyleSheet(sub_radio_style)
         self.multiple_images_radio.setStyleSheet(sub_radio_style)
@@ -76,7 +78,7 @@ class Step1Window(QWidget):
         self.image_type_group.setVisible(False)
         layout.addWidget(self.image_type_group)
 
-        # === 单张图像选择区域 ===
+        # === Single-image selection area ===
         self.single_image_group = QWidget()
         single_image_layout = QVBoxLayout()
         single_image_layout.setContentsMargins(40, 10, 0, 10)
@@ -95,13 +97,13 @@ class Step1Window(QWidget):
         self.single_image_group.setVisible(False)
         layout.addWidget(self.single_image_group)
 
-        # === 多张图像选择区域 ===
+        # === Multiple-image selection area ===
         self.multiple_images_group = QWidget()
         multiple_images_layout = QVBoxLayout()
         multiple_images_layout.setContentsMargins(40, 10, 0, 10)
         multiple_images_layout.setSpacing(15)
 
-        # 图像数量选择
+        # Image count selection
         count_layout = QHBoxLayout()
         count_label = QLabel("Number of images:")
         count_label.setStyleSheet("font-size: 24px;")
@@ -115,17 +117,17 @@ class Step1Window(QWidget):
         count_layout.addStretch()
         multiple_images_layout.addLayout(count_layout)
 
-        # 图像列表容器
+        # Image list container
         self.image_slots_layout = QVBoxLayout()
         self.image_slots_layout.setSpacing(10)
-        self.image_slots = []  # 存储图像选择部件
+        self.image_slots = []  # Stores the image selection widgets
         multiple_images_layout.addLayout(self.image_slots_layout)
 
         self.multiple_images_group.setLayout(multiple_images_layout)
         self.multiple_images_group.setVisible(False)
         layout.addWidget(self.multiple_images_group)
 
-        # === 下一步按钮 ===
+        # === Next button ===
         self.next_btn = QPushButton("Next")
         self.next_btn.setStyleSheet("""
             QPushButton {
@@ -143,23 +145,23 @@ class Step1Window(QWidget):
         self.next_btn.clicked.connect(self.next_step)
         layout.addWidget(self.next_btn)
 
-        # 连接信号
+        # Connect signals
         self.image_radio.toggled.connect(self.toggle_image_type_options)
         self.single_image_radio.toggled.connect(self.toggle_image_input_method)
         self.multiple_images_radio.toggled.connect(self.toggle_image_input_method)
 
-        # 初始化图像槽位
+        # Initialize image slots
         self.update_image_slots(3)
 
         layout.addStretch()
         self.setLayout(layout)
 
-        # 统一窗口尺寸并居中
+        # Apply unified window size and center
         self.adjustSize()
         apply_main_geometry(self)
 
     def toggle_image_type_options(self, checked):
-        """切换图像类型选项的显示状态"""
+        """Toggle visibility of the image type options"""
         self.image_type_group.setVisible(checked)
         if checked:
             self.toggle_image_input_method()
@@ -169,7 +171,7 @@ class Step1Window(QWidget):
         self.adjustSize()
 
     def toggle_image_input_method(self):
-        """切换单张/多张图像输入方式"""
+        """Switch between single/multiple image input modes"""
         if self.single_image_radio.isChecked():
             self.single_image_group.setVisible(True)
             self.multiple_images_group.setVisible(False)
@@ -179,7 +181,7 @@ class Step1Window(QWidget):
         self.adjustSize()
 
     def update_image_slots(self, count):
-        """更新图像选择槽位"""
+        """Update the image selection slots"""
         for slot in self.image_slots:
             if slot['widget'].layout():
                 while slot['widget'].layout().count():
@@ -197,7 +199,7 @@ class Step1Window(QWidget):
         self.adjustSize()
 
     def create_image_slot_widget(self, index):
-        """创建单个图像选择槽位部件"""
+        """Create a single image selection slot widget"""
         widget = QWidget()
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -362,7 +364,7 @@ class Step1Window(QWidget):
         from core.color_processing import extract_dominant_colors
         try:
             colors, weights = extract_dominant_colors(image_path, n_colors)
-            # 保存颜色和权重到 color_groups
+            # Save colors and weights to color_groups
             self.color_groups = [{'space': 'RGB', 'values': list(color), 'weight': weight} for color, weight in
                                  zip(colors, weights)]
             return colors
@@ -386,11 +388,11 @@ class Step1Window(QWidget):
 
 
 class Step2Window(QWidget):
-    """Step 2: 设计类型选择 - 已符合要求，保持不变"""
+    """Step 2: design type selection - already meets requirements, kept unchanged"""
     def __init__(self, prev_window):
         super().__init__()
         self.prev_window = prev_window
-        self.design_type = None  # 'dynamic' 或 'static'
+        self.design_type = None  # 'dynamic' or 'static'
         self.color_groups = prev_window.color_groups
         self.color_count = len(self.color_groups)
         self.step3_window = None
@@ -403,7 +405,7 @@ class Step2Window(QWidget):
         layout.setSpacing(30)
         layout.setContentsMargins(60, 40, 60, 40)
 
-        # 显示当前输入类型
+        # Show the current input type
         if self.prev_window.input_type == 'image':
             if self.prev_window.image_type == 'single':
                 input_text = "Input: Single Image"
@@ -416,7 +418,7 @@ class Step2Window(QWidget):
         input_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(input_label)
 
-        # 设计类型选择
+        # Design type selection
         design_group = QButtonGroup(self)
         self.dynamic_radio = QRadioButton("Dynamic Design")
         self.static_radio = QRadioButton("Static Design")
@@ -428,7 +430,7 @@ class Step2Window(QWidget):
         layout.addWidget(self.dynamic_radio)
         layout.addWidget(self.static_radio)
 
-        # 下一步按钮
+        # Next button
         next_btn = QPushButton("Next")
         next_btn.setStyleSheet("""
             QPushButton {
@@ -446,7 +448,7 @@ class Step2Window(QWidget):
         next_btn.clicked.connect(self.next_step)
         layout.addWidget(next_btn)
 
-        # 连接信号
+        # Connect signals
         self.dynamic_radio.toggled.connect(self.set_design_type)
         self.static_radio.toggled.connect(self.set_design_type)
 
@@ -471,7 +473,7 @@ class Step2Window(QWidget):
 
 
 class Step3Window(QWidget):
-    """Step 3: 参数设置与生成 - 统一字体，窗口自适应"""
+    """Step 3: parameter setup and generation - unified fonts, adaptive window"""
     def __init__(self, prev_window):
         super().__init__()
         self.prev_window = prev_window
@@ -494,19 +496,19 @@ class Step3Window(QWidget):
         self.main_layout.setSpacing(25)
         self.main_layout.setContentsMargins(60, 40, 60, 40)
 
-        # 状态信息（增大字体）
+        # Status info (enlarged font)
         self.status_label = QLabel()
         self.status_label.setStyleSheet("font-size: 28px; color: #555; font-weight: bold; padding: 8px; background-color: #f0f0f0; border-radius: 5px;")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.main_layout.addWidget(self.status_label)
 
-        # 参数分组
+        # Parameter group
         params_group = QGroupBox("Parameters")
         params_group.setStyleSheet("font-size: 24px; font-weight: bold;")
         params_layout = QVBoxLayout()
         params_layout.setSpacing(20)
 
-        # 采样数量
+        # Number of samples
         samples_layout = QHBoxLayout()
         samples_label = QLabel("Number of samples:")
         samples_label.setStyleSheet("font-size: 24px;")
@@ -524,7 +526,7 @@ class Step3Window(QWidget):
         samples_layout.addStretch()
         params_layout.addLayout(samples_layout)
 
-        # ΔE阈值
+        # ΔE threshold
         deltae_layout = QHBoxLayout()
         deltae_label = QLabel("ΔE threshold:")
         deltae_label.setStyleSheet("font-size: 24px;")
@@ -544,7 +546,7 @@ class Step3Window(QWidget):
         deltae_layout.addStretch()
         params_layout.addLayout(deltae_layout)
 
-        # 聚类方法（仅动态）
+        # Clustering method (dynamic only)
         if self.design_type == 'dynamic':
             clustering_layout = QHBoxLayout()
             clustering_label = QLabel("Clustering method:")
@@ -562,7 +564,7 @@ class Step3Window(QWidget):
         params_group.setLayout(params_layout)
         self.main_layout.addWidget(params_group)
 
-        # 生成按钮
+        # Generate button
         self.generate_btn = QPushButton("Generate Designs")
         self.generate_btn.setStyleSheet("""
             QPushButton {
@@ -580,7 +582,7 @@ class Step3Window(QWidget):
         self.generate_btn.clicked.connect(self.generate_designs)
         self.main_layout.addWidget(self.generate_btn)
 
-        # 进度标签
+        # Progress label
         self.progress_label = QLabel("")
         self.progress_label.setStyleSheet("color: #0066cc; font-size: 20px;")
         self.progress_label.setVisible(False)
@@ -606,7 +608,7 @@ class Step3Window(QWidget):
         self.clustering_method = method
 
     def generate_designs(self):
-        """在后台线程中执行设计生成，主线程显示进度对话框"""
+        """Run design generation in a background thread while the main thread shows a progress dialog"""
         colors = self.color_groups
         if not colors:
             self.show_error("No valid color data")

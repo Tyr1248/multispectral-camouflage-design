@@ -1,5 +1,5 @@
 """
-UI模块初始化文件
+UI package initialization.
 """
 
 from .main_window import MainWindow

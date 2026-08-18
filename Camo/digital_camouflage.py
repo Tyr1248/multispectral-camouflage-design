@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 @dataclass
 class BudgetFeedback:
-    """颜色预算反馈控制数据结构（支持可变颜色数量）"""
+    """Color budget feedback control data structure (supports variable color counts)."""
     target_ratios: np.ndarray
     current_usage: np.ndarray
     total_placed: int
@@ -14,21 +14,21 @@ class BudgetFeedback:
 
     @property
     def usage_ratios(self) -> np.ndarray:
-        """当前使用比例"""
+        """Current usage ratios."""
         if self.total_placed == 0:
             return np.zeros_like(self.target_ratios)
         return self.current_usage / self.total_placed
 
     @property
     def deviation_ratios(self) -> np.ndarray:
-        """与目标比例的偏差率"""
+        """Deviation rate from the target ratios."""
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return (self.usage_ratios - self.target_ratios) / (self.target_ratios + 1e-10)
 
     @property
     def remaining_budget_ratios(self) -> np.ndarray:
-        """剩余预算占比（相对所有颜色剩余预算总和）"""
+        """Remaining budget share (relative to the total remaining budget of all colors)."""
         remaining = self.get_remaining_budget()
         total_remaining = np.sum(remaining)
         if total_remaining < 1e-10:
@@ -36,34 +36,34 @@ class BudgetFeedback:
         return remaining / total_remaining
 
     def update_usage(self, color_idx: int, added_pixels: int):
-        """更新颜色使用情况"""
+        """Update color usage."""
         self.current_usage[color_idx] += added_pixels
         self.total_placed += added_pixels
 
     def get_remaining_budget(self) -> np.ndarray:
-        """获取剩余预算（目标像素数 - 当前使用）"""
+        """Get the remaining budget (target pixels - current usage)."""
         return np.maximum(self.target_pixels - self.current_usage, 0)
 
     def get_remaining_budget_ratio(self, color_idx: int) -> float:
-        """获取单个颜色的剩余预算占比"""
+        """Return the remaining budget share for one color."""
         return self.remaining_budget_ratios[color_idx]
 
 
 class DigitalCamouflageRandom:
-    """生成随机数字迷彩图案（4 倍上采样输出版本）"""
+    """Generate random digital camouflage patterns (4x upscaled output version)."""
 
     def __init__(self, canvas_size: Tuple[int, int] = (256, 256),
                  spot_database_path: str = 'spot_database',
                  expand_pixels: int = 10,
                  upscale_factor: int = 4):
         """
-        初始化迷彩生成器
+        Initialize the camouflage generator.
 
-        参数:
-            canvas_size: 初始画布尺寸 (宽，高)，默认 (256, 256)
-            spot_database_path: 斑点数据库路径
-            expand_pixels: 边缘扩展像素数，默认 10
-            upscale_factor: 上采样倍数，默认 4（输出尺寸 = canvas_size × upscale_factor）
+        Args:
+            canvas_size: Initial canvas size (width, height), default (256, 256).
+            spot_database_path: Path to the spot database.
+            expand_pixels: Number of edge-expansion pixels, default 10.
+            upscale_factor: Upscaling factor, default 4 (output size = canvas_size x upscale_factor).
         """
         self.original_canvas_size = canvas_size
         self.expanded_canvas_size = (canvas_size[0] + expand_pixels * 2,
@@ -71,12 +71,12 @@ class DigitalCamouflageRandom:
         self.expand_pixels = expand_pixels
         self.upscale_factor = upscale_factor
 
-        # 上采样后的尺寸
+        # Upscaled dimensions
         self.upscaled_canvas_size = (canvas_size[0] * upscale_factor,
                                      canvas_size[1] * upscale_factor)
         self.upscaled_expand_pixels = expand_pixels * upscale_factor
 
-        # 初始化斑点数据库管理器
+        # Initialize the spot database manager
         from Camo.spot_database_manager import SpotDatabaseManager
         from Camo.spot_renderer import SpotRenderer
         self.spot_database_manager = SpotDatabaseManager(spot_database_path)
@@ -90,33 +90,33 @@ class DigitalCamouflageRandom:
                                     target_ratios: List[float],
                                     seed: int = None) -> np.ndarray:
         """
-        生成迷彩图案（上采样输出版本）
+        Generate a camouflage pattern (upscaled output version).
 
-        参数:
-            dominant_colors_rgb: 主导颜色列表，形状 (n_colors, 3)，dtype=np.uint8
-            total_coverage_target: 总覆盖率目标，0.0~1.0
-            target_ratios: 各颜色目标比例列表，长度=n_colors，自动归一化
-            seed: 随机种子，可选
+        Args:
+            dominant_colors_rgb: Dominant color list, shape (n_colors, 3), dtype=np.uint8.
+            total_coverage_target: Total coverage target, 0.0-1.0.
+            target_ratios: Target ratio list per color, length=n_colors, auto-normalized.
+            seed: Random seed, optional.
 
-        返回:
-            canvas: 迷彩图案图像，形状 (H×factor, W×factor, 3)，dtype=np.uint8
-                   其中 H,W 为 canvas_size，factor 为 upscale_factor
-                   例如：canvas_size=(256,256), upscale_factor=4 → 输出 (1024, 1024, 3)
+        Returns:
+            canvas: Camouflage pattern image, shape (H*factor, W*factor, 3), dtype=np.uint8,
+                   where H,W are canvas_size and factor is upscale_factor.
+                   Example: canvas_size=(256,256), upscale_factor=4 -> output (1024, 1024, 3)
         """
         if seed is not None:
             np.random.seed(seed)
 
-        # 验证和调整颜色预算
+        # Validate and adjust the color budgets
         target_ratios = self.validate_and_adjust_budgets(target_ratios)
 
         width, height = self.expanded_canvas_size
         n_colors = len(dominant_colors_rgb)
 
-        # 创建空白画布（低分辨率）
+        # Create a blank canvas (low resolution)
         canvas = np.zeros((height, width, 3), dtype=np.uint8)
         coverage_mask = np.zeros((height, width), dtype=bool)
 
-        # 初始化颜色预算反馈控制器
+        # Initialize the color budget feedback controller
         total_pixels = width * height
         target_covered_pixels = int(total_coverage_target * total_pixels)
 
@@ -132,27 +132,27 @@ class DigitalCamouflageRandom:
         print(f"  上采样倍数：{self.upscale_factor}")
         print(f"  最终输出：{self.upscaled_canvas_size[0]}×{self.upscaled_canvas_size[1]}")
 
-        # 阶段 1：网格化基础放置（应用预算 - 斑点大小绑定策略）
+        # Stage 1: grid-based base placement (budget-to-spot-size binding strategy)
         print("\n阶段 1: 网格化基础放置（预算 - 斑点大小绑定）")
         canvas, coverage_mask = self.grid_based_placement(
             canvas, coverage_mask, dominant_colors_rgb, budget_feedback,
             coverage_target=0.7
         )
 
-        # 阶段 2：间隙填充（全部使用小斑点）
+        # Stage 2: gap filling (small spots only)
         print("\n阶段 2: 间隙填充（全部小斑点）")
         canvas, coverage_mask = self.gap_filling(
             canvas, coverage_mask, dominant_colors_rgb, budget_feedback,
             coverage_target=0.9
         )
 
-        # 阶段 3：像素级精修（确保 100% 覆盖）
+        # Stage 3: pixel-level refinement (ensures 100% coverage)
         print("\n阶段 3: 像素级精修")
         canvas, coverage_mask = self.pixel_level_refinement(
             canvas, coverage_mask, dominant_colors_rgb, budget_feedback
         )
 
-        # 验证覆盖率
+        # Verify the coverage
         current_coverage = np.sum(coverage_mask) / total_pixels
         final_usage_ratios = budget_feedback.usage_ratios
 
@@ -161,13 +161,13 @@ class DigitalCamouflageRandom:
         print(f"  颜色比例：{final_usage_ratios}")
         print(f"  最大偏差：{np.max(np.abs(final_usage_ratios - target_ratios)) * 100:.1f}%")
 
-        # 裁切回原始尺寸（低分辨率）
+        # Crop back to the original size (low resolution)
         from Camo.image_processor import ImageProcessor
         canvas = ImageProcessor.crop_to_original_size(
             canvas, self.expand_pixels, self.original_canvas_size
         )
 
-        # 上采样到最终尺寸
+        # Upscale to the final size
         print(f"\n阶段 4: 上采样 {self.upscale_factor}x")
         canvas = self.upscale_image(canvas)
         print(f"  输出尺寸：{canvas.shape[1]}×{canvas.shape[0]}")
@@ -176,38 +176,38 @@ class DigitalCamouflageRandom:
 
     def upscale_image(self, canvas: np.ndarray) -> np.ndarray:
         """
-        使用最近邻插值上采样图像
-        保持色块边缘清晰，不产生模糊
+        Upsample the image with nearest-neighbor interpolation.
+        Keeps color-block edges sharp without blurring.
 
-        参数:
-            canvas: 输入图像，形状 (H, W, 3)，dtype=np.uint8
-        返回:
-            upscaled: 上采样后图像，形状 (H×factor, W×factor, 3)，dtype=np.uint8
+        Args:
+            canvas: Input image, shape (H, W, 3), dtype=np.uint8.
+        Returns:
+            upscaled: Upsampled image, shape (H*factor, W*factor, 3), dtype=np.uint8.
         """
         h, w, c = canvas.shape
         factor = self.upscale_factor
 
-        # 使用 np.repeat 进行最近邻上采样
-        upscaled = np.repeat(canvas, factor, axis=0)  # 行方向×factor
-        upscaled = np.repeat(upscaled, factor, axis=1)  # 列方向×factor
+        # Nearest-neighbor upsampling via np.repeat
+        upscaled = np.repeat(canvas, factor, axis=0)  # rows x factor
+        upscaled = np.repeat(upscaled, factor, axis=1)  # columns x factor
 
         return upscaled
 
     def select_spot_type_by_budget(self, budget_feedback: BudgetFeedback,
                                    color_idx: int) -> str:
         """
-        根据颜色预算占比选择斑点类型
+        Select the spot type based on the color budget share.
 
-        预算占比规则：
-        - > 0.6: 100% 大斑点
-        - 0.3 ~ 0.6: 大小斑点混合（大 40% : 小 60%）
-        - ≤ 0.3: 100% 小斑点
+        Budget share rules:
+        - > 0.6: 100% large spots
+        - 0.3 ~ 0.6: mix of large and small spots (large 40% : small 60%)
+        - <= 0.3: 100% small spots
 
-        参数:
-            budget_feedback: 预算反馈对象
-            color_idx: 颜色索引
-        返回:
-            spot_type: 'large' 或 'small'
+        Args:
+            budget_feedback: Budget feedback object.
+            color_idx: Color index.
+        Returns:
+            spot_type: 'large' or 'small'
         """
         budget_ratio = budget_feedback.get_remaining_budget_ratio(color_idx)
 
@@ -221,31 +221,31 @@ class DigitalCamouflageRandom:
     def grid_based_placement(self, canvas, coverage_mask, colors,
                              budget_feedback: BudgetFeedback, coverage_target: float):
         """
-        网格化基础放置：在规则网格上放置斑点确保基本覆盖
-        应用预算 - 斑点大小绑定策略
+        Grid-based base placement: place spots on a regular grid for basic coverage.
+        Applies the budget-to-spot-size binding strategy.
 
-        参数:
-            canvas: 画布数组，形状 (H, W, 3)
-            coverage_mask: 覆盖掩码，形状 (H, W)
-            colors: 颜色数组，形状 (n_colors, 3)
-            budget_feedback: 预算反馈对象
-            coverage_target: 目标覆盖率
-        返回:
-            canvas, coverage_mask: 更新后的画布和掩码
+        Args:
+            canvas: Canvas array, shape (H, W, 3).
+            coverage_mask: Coverage mask, shape (H, W).
+            colors: Color array, shape (n_colors, 3).
+            budget_feedback: Budget feedback object.
+            coverage_target: Target coverage ratio.
+        Returns:
+            canvas, coverage_mask: Updated canvas and mask.
         """
         height, width, _ = canvas.shape
         total_pixels = height * width
         target_pixels = int(total_pixels * coverage_target)
 
-        # 计算网格大小
+        # Compute the grid size
         avg_spot_size = 12
         grid_size = max(avg_spot_size // 2, 8)
 
-        # 创建网格点
+        # Create grid points
         grid_x = np.arange(grid_size, width - grid_size, grid_size)
         grid_y = np.arange(grid_size, height - grid_size, grid_size)
 
-        # 打乱网格点顺序
+        # Shuffle the grid points
         grid_positions = []
         for x in grid_x:
             for y in grid_y:
@@ -263,14 +263,14 @@ class DigitalCamouflageRandom:
 
             x, y = grid_positions[attempt]
 
-            # 根据预算选择颜色
+            # Select a color based on the budget
             color_idx = self.select_color_by_budget(budget_feedback)
             color = colors[color_idx]
 
-            # 根据颜色预算选择斑点大小
+            # Select the spot size based on the color budget
             spot_type = self.select_spot_type_by_budget(budget_feedback, color_idx)
 
-            # 获取斑点
+            # Get a spot
             spot_cell = self.spot_database_manager.spot_database.get(spot_type, [])
             if not spot_cell:
                 continue
@@ -281,11 +281,11 @@ class DigitalCamouflageRandom:
             spot_img = rotated_spot_data['image']
             sh, sw = spot_img.shape
 
-            # 确保斑点不会超出边界
+            # Make sure the spot stays within the bounds
             if x + sw >= width or y + sh >= height:
                 continue
 
-            # 放置斑点
+            # Place the spot
             added = 0
             for i in range(sh):
                 for j in range(sw):
@@ -307,17 +307,17 @@ class DigitalCamouflageRandom:
     def gap_filling(self, canvas, coverage_mask, colors,
                     budget_feedback: BudgetFeedback, coverage_target: float):
         """
-        间隙填充：在空白区域放置小斑点
-        全部使用小斑点，不考虑预算
+        Gap filling: place small spots in blank areas.
+        Uses small spots only, ignoring the budget.
 
-        参数:
-            canvas: 画布数组，形状 (H, W, 3)
-            coverage_mask: 覆盖掩码，形状 (H, W)
-            colors: 颜色数组，形状 (n_colors, 3)
-            budget_feedback: 预算反馈对象
-            coverage_target: 目标覆盖率
-        返回:
-            canvas, coverage_mask: 更新后的画布和掩码
+        Args:
+            canvas: Canvas array, shape (H, W, 3).
+            coverage_mask: Coverage mask, shape (H, W).
+            colors: Color array, shape (n_colors, 3).
+            budget_feedback: Budget feedback object.
+            coverage_target: Target coverage ratio.
+        Returns:
+            canvas, coverage_mask: Updated canvas and mask.
         """
         height, width, _ = canvas.shape
         total_pixels = height * width
@@ -336,7 +336,7 @@ class DigitalCamouflageRandom:
             idx = np.random.randint(len(uncovered_y))
             x, y = uncovered_x[idx], uncovered_y[idx]
 
-            # 固定使用小斑点
+            # Always use small spots
             spot_type = 'small'
             color_idx = self.select_color_by_budget(budget_feedback)
             color = colors[color_idx]
@@ -384,15 +384,15 @@ class DigitalCamouflageRandom:
     def pixel_level_refinement(self, canvas, coverage_mask, colors,
                                budget_feedback: BudgetFeedback):
         """
-        像素级精修：确保 100% 覆盖并满足颜色预算
+        Pixel-level refinement: ensures 100% coverage and satisfies the color budget.
 
-        参数:
-            canvas: 画布数组，形状 (H, W, 3)
-            coverage_mask: 覆盖掩码，形状 (H, W)
-            colors: 颜色数组，形状 (n_colors, 3)
-            budget_feedback: 预算反馈对象
-        返回:
-            canvas, coverage_mask: 更新后的画布和掩码
+        Args:
+            canvas: Canvas array, shape (H, W, 3).
+            coverage_mask: Coverage mask, shape (H, W).
+            colors: Color array, shape (n_colors, 3).
+            budget_feedback: Budget feedback object.
+        Returns:
+            canvas, coverage_mask: Updated canvas and mask.
         """
         height, width, _ = canvas.shape
 
@@ -452,12 +452,12 @@ class DigitalCamouflageRandom:
 
     def select_color_by_budget(self, budget_feedback: BudgetFeedback) -> int:
         """
-        根据剩余预算选择颜色
+        Select a color based on the remaining budget.
 
-        参数:
-            budget_feedback: 预算反馈对象
-        返回:
-            color_idx: 选中的颜色索引
+        Args:
+            budget_feedback: Budget feedback object.
+        Returns:
+            color_idx: Selected color index.
         """
         remaining_budget = budget_feedback.get_remaining_budget()
         total_remaining = np.sum(remaining_budget)
@@ -470,12 +470,12 @@ class DigitalCamouflageRandom:
 
     def validate_and_adjust_budgets(self, target_ratios: List[float]) -> List[float]:
         """
-        验证和调整颜色预算（支持可变颜色数量）
+        Validate and adjust the color budgets (supports variable color counts).
 
-        参数:
-            target_ratios: 目标比例列表
-        返回:
-            adjusted_ratios: 调整后的比例列表（总和为 1）
+        Args:
+            target_ratios: Target ratio list.
+        Returns:
+            adjusted_ratios: Adjusted ratio list (sums to 1).
         """
         adjusted_ratios = target_ratios.copy()
         n_colors = len(target_ratios)

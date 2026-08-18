@@ -6,28 +6,28 @@ import cv2
 
 
 class SpotDatabaseManager:
-    """斑点数据库管理器"""
+    """Spot database manager."""
 
     def __init__(self, spot_database_path='spot_database'):
         """
-        初始化斑点数据库管理器
+        Initialize the spot database manager.
 
         Args:
-            spot_database_path: 斑点数据库路径
+            spot_database_path: Path to the spot database.
         """
         self.spot_database_path = spot_database_path
         self.spot_database = self.load_spot_database()
 
     def load_spot_database(self):
         """
-        加载斑点数据库
+        Load the spot database.
 
         Returns:
-            斑点数据库字典，包含'large'和'small'键
+            Spot database dictionary with 'large' and 'small' keys.
         """
         spot_db = {'large': [], 'small': []}
 
-        # 加载大斑点
+        # Load large spots
         large_path = Path(self.spot_database_path) / 'large_spots'
         if large_path.exists():
             large_files = list(large_path.glob('*.png'))
@@ -36,7 +36,7 @@ class SpotDatabaseManager:
                 if spot_data is not None:
                     spot_db['large'].append(spot_data)
 
-        # 加载小斑点
+        # Load small spots
         small_path = Path(self.spot_database_path) / 'small_spots'
         if small_path.exists():
             small_files = list(small_path.glob('*.png'))
@@ -50,43 +50,43 @@ class SpotDatabaseManager:
 
     def load_spot_image(self, filepath):
         """
-        加载单个斑点图像
+        Load a single spot image.
 
         Args:
-            filepath: 图像文件路径
+            filepath: Path to the image file.
 
         Returns:
-            斑点数据字典，包含图像、文件名、尺寸等信息
+            Spot data dictionary with image, filename, size, etc.
         """
         try:
-            # 读取图像
+            # Read the image
             with Image.open(filepath) as img:
                 image = np.array(img)
 
-            # 如果图像是彩色，转换为灰度
+            # Convert to grayscale if the image is colored
             if len(image.shape) == 3:
                 if image.shape[2] == 4:  # RGBA
-                    # 分离alpha通道
+                    # Split out the alpha channel
                     alpha = image[:, :, 3]
-                    # 将RGB转换为灰度
+                    # Convert RGB to grayscale
                     gray = cv2.cvtColor(image[:, :, :3], cv2.COLOR_RGB2GRAY)
-                    # 应用alpha通道
+                    # Apply the alpha channel
                     gray = gray * (alpha / 255)
                 else:  # RGB
                     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
             else:
                 gray = image
 
-            # 二值化 - 阈值设置为127
+            # Binarize with threshold 127
             binary_spot = gray > 127
 
-            # 从文件名提取尺寸信息
+            # Extract size information from the filename
             filename = Path(filepath).stem
-            size_str = filename.split('_')[0]  # 例如 "12x12"
+            size_str = filename.split('_')[0]  # e.g. "12x12"
             try:
                 width, height = map(int, size_str.split('x'))
             except:
-                # 如果无法解析尺寸，使用图像实际尺寸
+                # Fall back to the actual image size if parsing fails
                 height, width = binary_spot.shape
                 print(f"警告: 无法从文件名解析尺寸，使用图像实际尺寸 {height}x{width}")
 

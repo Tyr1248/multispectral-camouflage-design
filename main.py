@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-智能迷彩设计系统 - 主程序入口
-基于cGAN的动态可调迷彩生成系统
-支持多组颜色输入、动态多解设计和静态优化设计
+Smart Camouflage Design System - Main entry point
+Dynamic tunable camouflage generation system based on cGAN
+Supports multi-color input, dynamic multi-solution design, and static optimized design
 """
 
 
@@ -14,7 +14,7 @@ import sys
 import traceback
 
 def excepthook(exc_type, exc_value, exc_traceback):
-    """全局异常处理"""
+    """Global exception handler"""
     error_msg = ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
     with open('debug.log', 'a', encoding='utf-8') as f:
         f.write(f"Uncaught exception:\n{error_msg}\n")
@@ -22,24 +22,24 @@ def excepthook(exc_type, exc_value, exc_traceback):
     QMessageBox.critical(None, "程序错误", f"发生未捕获的异常:\n{str(exc_value)}")
 
 sys.excepthook = excepthook
-# 设置Matplotlib中文字体，避免警告
+# Set Matplotlib Chinese fonts to avoid warnings
 def setup_chinese_fonts():
-    """配置中文字体支持"""
+    """Configure Chinese font support"""
 
-    # 忽略字体警告（临时解决方案）
+    # Ignore font warnings (temporary workaround)
     warnings.filterwarnings("ignore", message="Glyph.*missing from font")
 
-    # 根据操作系统设置中文字体
+    # Select Chinese fonts based on the operating system
     system = platform.system()
 
     if system == 'Windows':
-        # Windows系统中文
+        # Chinese fonts on Windows
         font_candidates = [
-            'Microsoft YaHei',  # 微软雅黑
-            'SimHei',  # 黑体
-            'SimSun',  # 宋体
-            'KaiTi',  # 楷体
-            'FangSong',  # 仿宋
+            'Microsoft YaHei',
+            'SimHei',
+            'SimSun',
+            'KaiTi',
+            'FangSong',
             'Arial Unicode MS'
         ]
     elif system == 'Darwin':  # macOS
@@ -58,21 +58,21 @@ def setup_chinese_fonts():
             'DejaVu Sans'
         ]
 
-    # 设置Matplotlib默认字体
+    # Set Matplotlib default fonts
     matplotlib.rcParams['font.sans-serif'] = font_candidates
-    matplotlib.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+    matplotlib.rcParams['axes.unicode_minus'] = False  # Fix minus sign display
 
-    # 打印当前使用的字体
+    # Print the font currently in use
     current_font = matplotlib.rcParams.get('font.sans-serif', ['unknown'])[0]
     print(f"Matplotlib font set to: {current_font}")
 
     return font_candidates[0] if font_candidates else None
 
 
-# 在导入UI模块前设置字体
+# Set fonts before importing UI modules
 chinese_font = setup_chinese_fonts()
 
-# 添加项目根目录到路径
+# Add the project root directory to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from PyQt5.QtWidgets import QApplication
@@ -81,23 +81,23 @@ from ui.main_window import MainWindow
 
 
 def main():
-    """主函数"""
-    # 创建应用程序
+    """Main function"""
+    # Create the application
     app = QApplication(sys.argv)
     app.setApplicationName("智能迷彩设计系统")
     app.setOrganizationName("Panavy")
 
-    # 设置应用程序样式
+    # Set the application style
     app.setStyle('Fusion')
 
-    # 设置应用程序全局字体（确保Qt控件中的中文正常显示）
+    # Set the global application font (ensure Chinese renders correctly in Qt widgets)
     if chinese_font:
-        # 创建字体
+        # Create the font
         font = QFont(chinese_font, 10)
         app.setFont(font)
         print(f"Qt application font set to: {chinese_font}")
     else:
-        # 尝试设置默认中文字体
+        # Fall back to default Chinese fonts
         default_fonts = ['Microsoft YaHei', 'SimHei', 'Arial Unicode MS']
         for font_name in default_fonts:
             font = QFont(font_name, 10)
@@ -106,11 +106,11 @@ def main():
                 print(f"Qt application font set to: {font_name}")
                 break
 
-    # 创建并显示主窗口
+    # Create and show the main window
     main_window = MainWindow()
     main_window.show()
 
-    # 启动事件循环
+    # Start the event loop
     sys.exit(app.exec_())
 
 

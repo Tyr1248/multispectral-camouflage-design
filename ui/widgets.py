@@ -1,6 +1,7 @@
 """
-自定义控件模块 - 最终简化版，仅保留必要控件，窗口1280x800，字体放大
-包含动态结果窗口、静态结果窗口和最终结果窗口
+Custom widgets module - final simplified version; only essential widgets
+kept, 1280x800 window, enlarged fonts.
+Contains the dynamic results window, static results window, and final result window.
 """
 import os
 import numpy as np
@@ -23,7 +24,7 @@ from matplotlib.figure import Figure
 
 from .window_utils import apply_main_geometry
 
-# 尝试导入colour-science库，如果失败则使用备用方案
+# Try to import the colour-science library; use the fallback if it fails
 try:
     import colour
     from colour.models import Lab_to_XYZ, XYZ_to_sRGB, sRGB_to_XYZ, XYZ_to_Lab
@@ -36,11 +37,11 @@ except ImportError:
 
 
 class ColorConverter:
-    """颜色空间转换器，使用colour-science库或备用方案"""
+    """Color space converter using the colour-science library or a fallback"""
 
     @staticmethod
     def rgb_to_hex(rgb):
-        """RGB转十六进制颜色"""
+        """Convert RGB to a hex color string"""
         if not rgb or len(rgb) < 3:
             return "#000000"
         return "#{:02x}{:02x}{:02x}".format(
@@ -49,7 +50,7 @@ class ColorConverter:
 
     @staticmethod
     def format_color_info(color_data):
-        """格式化颜色信息显示"""
+        """Format color information for display"""
         if isinstance(color_data, dict):
             if 'rgb' in color_data:
                 rgb = color_data['rgb']
@@ -66,7 +67,7 @@ class ColorConverter:
 
     @staticmethod
     def rgb_to_lab(rgb):
-        """RGB转Lab颜色空间（标准范围）"""
+        """Convert RGB to Lab color space (standard ranges)"""
         if not COLOUR_AVAILABLE:
             return ColorConverter._simple_rgb_to_lab(rgb)
         try:
@@ -85,7 +86,7 @@ class ColorConverter:
 
     @staticmethod
     def lab_to_rgb(lab):
-        """Lab转RGB颜色空间（标准范围）"""
+        """Convert Lab to RGB color space (standard ranges)"""
         if not COLOUR_AVAILABLE:
             return ColorConverter._simple_lab_to_rgb(lab)
         try:
@@ -104,7 +105,7 @@ class ColorConverter:
 
     @staticmethod
     def _extract_rgb_values(rgb_data):
-        """从不同格式的输入中提取RGB值"""
+        """Extract RGB values from inputs of various formats"""
         if rgb_data is None:
             return None
         if isinstance(rgb_data, (list, tuple, np.ndarray)):
@@ -134,7 +135,7 @@ class ColorConverter:
 
     @staticmethod
     def _extract_lab_values(lab_data):
-        """从不同格式的输入中提取Lab值"""
+        """Extract Lab values from inputs of various formats"""
         if lab_data is None:
             return None
         if isinstance(lab_data, (list, tuple, np.ndarray)):
@@ -164,7 +165,7 @@ class ColorConverter:
 
     @staticmethod
     def _simple_rgb_to_lab(rgb):
-        """简化的RGB到Lab转换（备用方案）"""
+        """Simplified RGB to Lab conversion (fallback)"""
         try:
             if rgb is None:
                 return [50.0, 0.0, 0.0]
@@ -199,7 +200,7 @@ class ColorConverter:
 
     @staticmethod
     def _simple_lab_to_rgb(lab):
-        """简化的Lab到RGB转换（备用方案）"""
+        """Simplified Lab to RGB conversion (fallback)"""
         try:
             if lab is None:
                 return [128, 128, 128]
@@ -245,7 +246,7 @@ class ColorConverter:
 
     @staticmethod
     def get_color_difference(lab1, lab2):
-        """计算两个Lab颜色之间的ΔE*ab色差"""
+        """Compute the ΔE*ab color difference between two Lab colors"""
         try:
             if not lab1 or not lab2 or len(lab1) < 3 or len(lab2) < 3:
                 return 0
@@ -260,14 +261,14 @@ class ColorConverter:
 
     @staticmethod
     def format_lab(lab):
-        """格式化Lab值显示"""
+        """Format Lab values for display"""
         if not lab or len(lab) < 3:
             return "L: -, a: -, b: -"
         return f"L: {lab[0]:.1f}, a: {lab[1]:.1f}, b: {lab[2]:.1f}"
 
     @staticmethod
     def format_thickness(thickness_list):
-        """格式化厚度列表显示"""
+        """Format a thickness list for display"""
         if not thickness_list:
             return "N/A"
         if isinstance(thickness_list, (int, float)):
@@ -290,7 +291,7 @@ class ColorConverter:
 
 
 class ColorDisplayWidget(QWidget):
-    """颜色显示控件 - 简化版，仅显示颜色块和简要数值"""
+    """Color display widget - simplified; shows only the color block and brief values"""
     def __init__(self, label, color_data, is_target=False, parent=None):
         super().__init__(parent)
         self.label = label
@@ -301,14 +302,14 @@ class ColorDisplayWidget(QWidget):
         self.init_ui()
 
     def parse_color_data(self, color_data):
-        """解析颜色数据"""
-        # 初始化默认值
+        """Parse color data"""
+        # Initialize default values
         self.color_rgb = [128, 128, 128]
         self.color_lab = [50.0, 0.0, 0.0]
 
         try:
             if isinstance(color_data, dict):
-                # 如果是字典，可能包含RGB和Lab
+                # A dict may contain RGB and Lab
                 if 'values' in color_data:
                     color_space = color_data.get('space', 'RGB')
                     if color_space == 'RGB':
@@ -353,17 +354,17 @@ class ColorDisplayWidget(QWidget):
                         self.color_rgb = ColorConverter.lab_to_rgb(self.color_lab)
             elif isinstance(color_data, (list, tuple, np.ndarray)):
                 if len(color_data) >= 3:
-                    # 尝试判断是RGB还是Lab
+                    # Try to determine whether it is RGB or Lab
                     first_val = color_data[0]
                     if isinstance(first_val, (int, np.integer)) or (
                             isinstance(first_val, (float, np.floating)) and first_val > 1.0):
-                        # 可能是RGB值（整数或大于1的浮点数）
+                        # Likely RGB values (integers or floats greater than 1)
                         rgb_values = ColorConverter._extract_rgb_values(color_data)
                         if rgb_values:
                             self.color_rgb = [int(c) for c in rgb_values]
                             self.color_lab = ColorConverter.rgb_to_lab(self.color_rgb)
                     else:
-                        # 可能是Lab值
+                        # Likely Lab values
                         lab_values = ColorConverter._extract_lab_values(color_data)
                         if lab_values:
                             self.color_lab = [float(c) for c in lab_values]
@@ -371,7 +372,7 @@ class ColorDisplayWidget(QWidget):
 
         except Exception as e:
             print(f"解析颜色数据失败: {e}, 数据: {color_data}")
-            # 使用默认值
+            # Use default values
             self.color_rgb = [128, 128, 128]
             self.color_lab = [50.0, 0.0, 0.0]
 
@@ -430,7 +431,7 @@ class ColorDisplayWidget(QWidget):
 
 
 class SolutionDisplayWidget(QWidget):
-    """解决方案显示控件 - 简化版"""
+    """Solution display widget - simplified"""
     def __init__(self, solution_data, parent=None):
         super().__init__(parent)
         self.solution_data = solution_data
@@ -515,7 +516,7 @@ class SolutionDisplayWidget(QWidget):
 
 
 class DynamicResultsWindow(QWidget):
-    """动态设计结果窗口 - 大字体、两列布局、无边框卡片、自动+1、窗口自适应"""
+    """Dynamic design results window - large fonts, two-column layout, borderless cards, auto +1 numbering, adaptive window"""
     def __init__(self, all_solutions, parent=None):
         super().__init__()
         self.parent_window = parent
@@ -535,7 +536,7 @@ class DynamicResultsWindow(QWidget):
         return solutions_by_color
 
     def init_ui(self):
-        # ========== 全局字体统一（仿 Step1Window） ==========
+        # ========== Globally unified fonts (modeled on Step1Window) ==========
         self.setStyleSheet("""
             QLabel {
                 font-size: 20px;
@@ -564,12 +565,12 @@ class DynamicResultsWindow(QWidget):
             }
         """)
 
-        # 主布局
+        # Main layout
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
-        # ----- 标题（大号，蓝色背景）-----
+        # ----- Title (large, blue background) -----
         title_label = QLabel("Dynamic Design Results")
         title_label.setStyleSheet("""
             font-size: 32px;
@@ -582,7 +583,7 @@ class DynamicResultsWindow(QWidget):
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
 
-        # ----- 选项卡区域 -----
+        # ----- Tab area -----
         self.tab_widget = QTabWidget()
         for color_idx in sorted(self.solutions_by_color.keys()):
             color_solutions = self.solutions_by_color[color_idx]
@@ -590,7 +591,7 @@ class DynamicResultsWindow(QWidget):
             self.tab_widget.addTab(color_tab, f"Color {color_idx + 1}")
         layout.addWidget(self.tab_widget)
 
-        # ----- 底部控制栏 -----
+        # ----- Bottom control bar -----
         control_layout = QHBoxLayout()
         control_layout.setSpacing(15)
 
@@ -618,7 +619,7 @@ class DynamicResultsWindow(QWidget):
 
         layout.addLayout(control_layout)
 
-        # ----- 确认按钮（大号）-----
+        # ----- Confirm button (large) -----
         confirm_btn = QPushButton("Confirm Selection")
         confirm_btn.setStyleSheet("""
             font-size: 24px;
@@ -633,17 +634,17 @@ class DynamicResultsWindow(QWidget):
 
         self.setLayout(layout)
 
-        # 统一窗口尺寸并居中
+        # Apply unified window size and center
         apply_main_geometry(self)
 
     def create_color_tab(self, color_idx, solutions):
-        """为单个颜色创建选项卡页面"""
+        """Create a tab page for a single color"""
         tab = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(15)
 
-        # ----- 目标颜色信息条（紧凑但信息完整）-----
+        # ----- Target color info bar (compact but complete) -----
         target_rgb = solutions[0].get('target_rgb', [128, 128, 128])
         target_lab = ColorConverter.rgb_to_lab(target_rgb)
 
@@ -676,12 +677,12 @@ class DynamicResultsWindow(QWidget):
         target_layout.addStretch()
         layout.addWidget(target_widget)
 
-        # ----- 解决方案区域标题 -----
+        # ----- Solutions area title -----
         solutions_label = QLabel("Crystalline Solutions (click to select):")
         solutions_label.setStyleSheet("font-size: 24px; font-weight: bold; margin-top: 5px;")
         layout.addWidget(solutions_label)
 
-        # ----- 可滚动区域（网格布局，每行两列）-----
+        # ----- Scrollable area (grid layout, two columns per row) -----
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setMinimumHeight(400)
@@ -713,7 +714,7 @@ class DynamicResultsWindow(QWidget):
         scroll.setWidget(container)
         layout.addWidget(scroll)
 
-        # ----- 当前选中摘要 -----
+        # ----- Current selection summary -----
         self.current_selection_label = QLabel("Selected: None")
         self.current_selection_label.setObjectName("current_selection_label")
         self.current_selection_label.setStyleSheet("font-size: 20px; color: #27ae60; padding: 5px;")
@@ -723,7 +724,7 @@ class DynamicResultsWindow(QWidget):
         return tab
 
     def create_solution_card(self, solution, color_idx):
-        """创建无边框、大色块的解决方案卡片"""
+        """Create a borderless solution card with large color blocks"""
         card = QFrame()
         card.setFrameShape(QFrame.NoFrame)
         card.setStyleSheet("""
@@ -743,7 +744,7 @@ class DynamicResultsWindow(QWidget):
         sol_type = solution.get('solution_type', 'unknown')
         cluster_id = solution.get('cluster_id', -1)
 
-        # 标题（cluster_id 自动 +1）
+        # Title (cluster_id automatically +1)
         if sol_type == 'cluster_best':
             title = f"Cluster {cluster_id + 1} Best"
             color = "#9b59b6"
@@ -762,7 +763,7 @@ class DynamicResultsWindow(QWidget):
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
 
-        # 指标
+        # Metrics
         deltae = solution.get('deltaE', 0)
         deltaed = solution.get('deltaED', 0)
         metrics = QLabel(f"ΔE: {deltae:.3f}  |  ΔED: {deltaed:.3f}")
@@ -770,7 +771,7 @@ class DynamicResultsWindow(QWidget):
         metrics.setAlignment(Qt.AlignCenter)
         layout.addWidget(metrics)
 
-        # 厚度 - 更明显（字体 22px，深橙色）
+        # Thickness - more prominent (22px font, dark orange)
         thickness = solution.get('thickness', [])
         if thickness:
             thick_str = ColorConverter.format_thickness(thickness)
@@ -779,7 +780,7 @@ class DynamicResultsWindow(QWidget):
             thick_label.setAlignment(Qt.AlignCenter)
             layout.addWidget(thick_label)
 
-        # 颜色对比（非晶态→晶态）—— 色块 80×80
+        # Color comparison (amorphous → crystalline) — 80×80 color blocks
         colors_layout = QHBoxLayout()
         colors_layout.setSpacing(15)
 
@@ -810,10 +811,10 @@ class DynamicResultsWindow(QWidget):
         return card
 
     def toggle_solution_selection(self, key):
-        """点击卡片时切换选中状态"""
+        """Toggle the selection state when a card is clicked"""
         color_idx, sol_type, cluster_id = key
 
-        # 清除同一颜色下其他选中状态
+        # Clear other selections under the same color
         for k in list(self.selection_state.keys()):
             if k[0] == color_idx and self.selection_state[k]:
                 self.selection_state[k] = False
@@ -822,7 +823,7 @@ class DynamicResultsWindow(QWidget):
         self.selection_state[key] = True
         self.update_card_style(key)
 
-        # 更新 selected_solutions 列表
+        # Update the selected_solutions list
         self.selected_solutions = []
         for k, selected in self.selection_state.items():
             if selected:
@@ -887,22 +888,22 @@ class DynamicResultsWindow(QWidget):
         return None
 
     def select_all_global_best(self):
-        """为每个颜色选择 Global Best（参考初始版实现）"""
-        # 清空所有选中状态
+        """Select Global Best for every color (based on the initial implementation)"""
+        # Clear all selection states
         self.selected_solutions.clear()
         for key in self.selection_state:
             self.selection_state[key] = False
             self.update_card_style(key)
 
-        # 遍历每个颜色，找到最优解
+        # Iterate over each color and find its best solution
         for color_idx, solutions in self.solutions_by_color.items():
-            # 优先找 global_best 类型
+            # Prefer the global_best type
             global_best = None
             for sol in solutions:
                 if sol.get('solution_type') == 'global_best':
                     global_best = sol
                     break
-            # 如果没有，选 deltaE 最小的
+            # Otherwise pick the one with the smallest deltaE
             if not global_best and solutions:
                 global_best = min(solutions, key=lambda x: x.get('deltaE', float('inf')))
 
@@ -913,18 +914,18 @@ class DynamicResultsWindow(QWidget):
                     self.update_card_style(key)
                     self.selected_solutions.append(global_best)
 
-        # 更新所有界面元素
+        # Update all UI elements
         self.update_selection_stats()
-        # 刷新当前选项卡的摘要
+        # Refresh the current tab's summary
         current_idx = self.tab_widget.currentIndex()
         if current_idx >= 0:
             self.update_current_selection_label(current_idx)
 
-        # 提示操作完成（与初始版一致）
+        # Notify completion (same as the initial version)
         QMessageBox.information(self, "Info", "Global best selected for all colors")
 
     def clear_all_selections(self):
-        """清空所有选中"""
+        """Clear all selections"""
         self.selected_solutions.clear()
         for key in self.selection_state:
             self.selection_state[key] = False
@@ -1000,16 +1001,16 @@ class DynamicResultsWindow(QWidget):
 
 
 class StaticResultsWindow(QWidget):
-    """静态设计结果窗口 - 统一字体、无边框卡片、大色块、厚度醒目、窗口自适应"""
+    """Static design results window - unified fonts, borderless cards, large color blocks, prominent thickness, adaptive window"""
     def __init__(self, designs, parent=None):
         super().__init__()
         self.parent_window = parent
-        self.designs = designs  # 每个元素是一个颜色的设计结果（包含 global_best 和 max_deltaED 等）
+        self.designs = designs  # Each element is one color's design result (contains global_best, max_deltaED, etc.)
         self.setWindowTitle("Static Design Results")
         self.init_ui()
 
     def init_ui(self):
-        # ========== 全局字体统一（仿 Step1Window 与 DynamicResultsWindow） ==========
+        # ========== Globally unified fonts (modeled on Step1Window and DynamicResultsWindow) ==========
         self.setStyleSheet("""
             QLabel {
                 font-size: 20px;
@@ -1057,12 +1058,12 @@ class StaticResultsWindow(QWidget):
             }
         """)
 
-        # 主布局
+        # Main layout
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
-        # ----- 标题（大号，绿色背景）-----
+        # ----- Title (large, green background) -----
         title_label = QLabel("Static Design Results")
         title_label.setStyleSheet("""
             font-size: 32px;
@@ -1075,7 +1076,7 @@ class StaticResultsWindow(QWidget):
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
 
-        # ----- 选项卡区域 -----
+        # ----- Tab area -----
         self.tab_widget = QTabWidget()
         sorted_designs = sorted(self.designs, key=lambda x: x.get('color_index', 0))
         for i, design in enumerate(sorted_designs):
@@ -1084,7 +1085,7 @@ class StaticResultsWindow(QWidget):
             self.tab_widget.addTab(color_tab, f"Color {color_idx + 1}")
         layout.addWidget(self.tab_widget)
 
-        # ----- 统计信息（组框）-----
+        # ----- Statistics (group box) -----
         stats_text = self.calculate_statistics()
         stats_group = QGroupBox("Statistics")
         stats_group.setStyleSheet("""
@@ -1110,7 +1111,7 @@ class StaticResultsWindow(QWidget):
         stats_group.setLayout(stats_layout)
         layout.addWidget(stats_group)
 
-        # ----- 确认按钮（大号）-----
+        # ----- Confirm button (large) -----
         confirm_btn = QPushButton("Confirm Design Results")
         confirm_btn.setStyleSheet("""
             font-size: 24px;
@@ -1125,17 +1126,17 @@ class StaticResultsWindow(QWidget):
 
         self.setLayout(layout)
 
-        # 统一窗口尺寸并居中
+        # Apply unified window size and center
         apply_main_geometry(self)
 
     def create_color_tab(self, color_idx, design):
-        """为单个颜色创建选项卡页面"""
+        """Create a tab page for a single color"""
         tab = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(15)
 
-        # ----- 目标颜色信息条（紧凑但信息完整）-----
+        # ----- Target color info bar (compact but complete) -----
         target_rgb = design.get('target_rgb', [128, 128, 128])
         target_lab = ColorConverter.rgb_to_lab(target_rgb)
 
@@ -1168,7 +1169,7 @@ class StaticResultsWindow(QWidget):
         target_layout.addStretch()
         layout.addWidget(target_widget)
 
-        # ----- 解决方案卡片区域（水平排列）-----
+        # ----- Solution cards area (horizontal layout) -----
         solutions_group = QGroupBox("Design Results")
         solutions_group.setStyleSheet("""
             QGroupBox {
@@ -1183,25 +1184,25 @@ class StaticResultsWindow(QWidget):
         solutions_layout = QHBoxLayout()
         solutions_layout.setSpacing(20)
 
-        # 获取设计结果
+        # Get the design results
         if 'design_result' in design:
             solutions_data = design['design_result'].get('solutions', {})
         else:
             solutions_data = {'global_best': design}
 
-        # Global Best 卡片
+        # Global Best card
         global_best = solutions_data.get('global_best')
         if global_best:
             global_card = self.create_result_card("Global Best", global_best, "#2ecc71")
             solutions_layout.addWidget(global_card)
 
-        # Max ΔED 卡片
+        # Max ΔED card
         max_deltaED = solutions_data.get('max_deltaED')
         if max_deltaED:
             max_card = self.create_result_card("Max ΔED", max_deltaED, "#e74c3c")
             solutions_layout.addWidget(max_card)
 
-        # 如果缺少 max_deltaED，显示占位符（样式统一）
+        # If max_deltaED is missing, show a placeholder (consistent style)
         if not max_deltaED:
             placeholder = QLabel("No max ΔED solution")
             placeholder.setStyleSheet("""
@@ -1219,7 +1220,7 @@ class StaticResultsWindow(QWidget):
         solutions_group.setLayout(solutions_layout)
         layout.addWidget(solutions_group)
 
-        # ----- 参数表格（字体加大）-----
+        # ----- Parameter table (larger font) -----
         detail_label = QLabel("Parameters:")
         detail_label.setStyleSheet("font-size: 22px; font-weight: bold; padding: 5px 0;")
         layout.addWidget(detail_label)
@@ -1249,7 +1250,7 @@ class StaticResultsWindow(QWidget):
         return tab
 
     def create_result_card(self, title, solution, color):
-        """创建无边框、大色块、厚度突出的卡片（与动态窗口风格一致）"""
+        """Create a borderless card with large color blocks and prominent thickness (consistent with the dynamic window style)"""
         card = QFrame()
         card.setFrameShape(QFrame.NoFrame)
         card.setStyleSheet("""
@@ -1266,13 +1267,13 @@ class StaticResultsWindow(QWidget):
         layout.setSpacing(12)
         layout.setContentsMargins(15, 15, 15, 15)
 
-        # 标题
+        # Title
         title_label = QLabel(title)
         title_label.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {color};")
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
 
-        # 指标
+        # Metrics
         deltae = solution.get('deltaE', 0)
         deltaed = solution.get('deltaED', 0)
         metrics = QLabel(f"ΔE: {deltae:.3f}  |  ΔED: {deltaed:.3f}")
@@ -1280,7 +1281,7 @@ class StaticResultsWindow(QWidget):
         metrics.setAlignment(Qt.AlignCenter)
         layout.addWidget(metrics)
 
-        # 厚度 - 更明显
+        # Thickness - more prominent
         thickness = solution.get('thickness', [])
         if thickness:
             thick_str = ColorConverter.format_thickness(thickness)
@@ -1289,7 +1290,7 @@ class StaticResultsWindow(QWidget):
             thick_label.setAlignment(Qt.AlignCenter)
             layout.addWidget(thick_label)
 
-        # 颜色对比（非晶态→晶态）—— 大色块
+        # Color comparison (amorphous → crystalline) — large color blocks
         colors_layout = QHBoxLayout()
         colors_layout.setSpacing(15)
 
@@ -1320,7 +1321,7 @@ class StaticResultsWindow(QWidget):
         return card
 
     def populate_design_table(self, table, design):
-        """填充参数表格，保留原有内容，字体已整体放大"""
+        """Populate the parameter table; original content kept, fonts enlarged overall"""
         rows = []
         rows.append(["ΔE (amorphous-target)", f"{design.get('deltaE', 0):.3f}", "", ""])
         rows.append(["ΔED (crystalline-amorphous)", f"{design.get('deltaED', 0):.3f}", "", ""])
@@ -1350,10 +1351,10 @@ class StaticResultsWindow(QWidget):
             for j, value in enumerate(row):
                 item = QTableWidgetItem(str(value))
                 table.setItem(i, j, item)
-            table.setRowHeight(i, 36)  # 行高加大以适应字体
+            table.setRowHeight(i, 36)  # Increase row height to fit the font
 
     def calculate_statistics(self):
-        """计算统计信息（与原逻辑一致，仅调整格式）"""
+        """Compute statistics (same logic as before, only formatting adjusted)"""
         if not self.designs:
             return "No data"
         total_colors = len(self.designs)
@@ -1374,7 +1375,7 @@ class StaticResultsWindow(QWidget):
         return stats_text
 
     def confirm_designs(self):
-        """确认设计结果"""
+        """Confirm the design results"""
         summary = self.calculate_statistics()
         reply = QMessageBox.question(
             self, "Confirm",
@@ -1388,7 +1389,7 @@ class StaticResultsWindow(QWidget):
 
 
 class ResultWindow(QWidget):
-    """最终结果窗口 - 字体统一放大，信息紧凑，光谱分段着色"""
+    """Final results window - uniformly enlarged fonts, compact info, segmented spectrum coloring"""
     def __init__(self, design_params, main_window):
         super().__init__()
         self.design_params = design_params
@@ -1398,7 +1399,7 @@ class ResultWindow(QWidget):
     def init_ui(self):
         self.setWindowTitle("Final Results")
 
-        # 全局样式 - 按Step1Window字体体系放大
+        # Global style - enlarged following the Step1Window font scheme
         self.setStyleSheet("""
             QLabel { font-size: 20px; }
             QPushButton { font-size: 22px; padding: 8px 16px; }
@@ -1414,7 +1415,7 @@ class ResultWindow(QWidget):
         design_type = self.design_params.get('design_type', 'unknown')
         title_text = "Dynamic Design Results" if design_type == 'dynamic' else "Static Design Results"
         title_label = QLabel(title_text)
-        # 标题不使用白色字体，深色文字+浅灰渐变背景
+        # Title avoids white text: dark text on a light-gray gradient background
         title_label.setStyleSheet("""
             font-size: 32px; 
             font-weight: bold; 
@@ -1432,7 +1433,7 @@ class ResultWindow(QWidget):
             QTabBar::tab:selected { background-color: white; border-bottom: 3px solid #3498db; }
         """)
 
-        # 三个选项卡
+        # Three tabs
         summary_tab = self.create_summary_tab()
         tab_widget.addTab(summary_tab, "📊 Summary")
 
@@ -1444,7 +1445,7 @@ class ResultWindow(QWidget):
 
         layout.addWidget(tab_widget)
 
-        # 底部按钮
+        # Bottom buttons
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         save_btn = QPushButton("Save Results")
@@ -1468,7 +1469,7 @@ class ResultWindow(QWidget):
         apply_main_geometry(self)
 
     def create_summary_tab(self):
-        """摘要选项卡：显示核心统计和颜色对比"""
+        """Summary tab: shows core statistics and color comparisons"""
         tab = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 20, 20, 20)
@@ -1479,7 +1480,7 @@ class ResultWindow(QWidget):
         color_count = len(design_details)
         solutions_count = self.design_params.get('solutions_count', 0)
 
-        # 统计卡片
+        # Statistics card
         stats_group = QGroupBox("Overall Statistics")
         stats_group.setStyleSheet("font-size: 24px; font-weight: bold;")
         stats_layout = QHBoxLayout()
@@ -1505,7 +1506,7 @@ class ResultWindow(QWidget):
         stats_group.setLayout(stats_layout)
         layout.addWidget(stats_group)
 
-        # 颜色对比概览
+        # Color comparison overview
         if design_details:
             colors_group = QGroupBox("Color Comparison")
             colors_group.setStyleSheet("font-size: 24px; font-weight: bold;")
@@ -1521,7 +1522,7 @@ class ResultWindow(QWidget):
         return tab
 
     def create_compact_color_row(self, design):
-        """为每个颜色创建一行紧凑的颜色对比，字体调大，颜色块略缩小以节省宽度"""
+        """Create one compact color-comparison row per color; larger font, slightly smaller color blocks to save width"""
         widget = QWidget()
         layout = QHBoxLayout()
         layout.setContentsMargins(3, 3, 3, 3)
@@ -1534,7 +1535,7 @@ class ResultWindow(QWidget):
         deltaE = design.get('deltaE', 0)
         deltaED = design.get('deltaED', 0)
 
-        # 颜色块尺寸32x32（原40）
+        # Color block size 32x32 (was 40)
         def create_color_block(rgb, size=32):
             block = QLabel()
             block.setFixedSize(size, size)
@@ -1560,7 +1561,7 @@ class ResultWindow(QWidget):
         return widget
 
     def create_spectrum_tab(self):
-        """光谱选项卡：只显示3-14um，背景分段着色，字体放大"""
+        """Spectrum tab: shows only 3-14um, segmented background coloring, enlarged fonts"""
         tab = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(10, 10, 10, 10)
@@ -1574,7 +1575,7 @@ class ResultWindow(QWidget):
             tab.setLayout(layout)
             return tab
 
-        # 获取光谱数据
+        # Get spectrum data
         spectrum_data = self.design_params.get('spectrum_results', {})
         if not spectrum_data:
             try:
@@ -1588,15 +1589,15 @@ class ResultWindow(QWidget):
                 print(f"Spectrum calculation failed: {e}")
                 spectrum_data = {}
 
-        # 创建 Matplotlib 图表，宽度10英寸（原12），使布局更窄
+        # Create the Matplotlib figure; width 10 inches (was 12) for a narrower layout
         fig = Figure(figsize=(10, 6), dpi=100)
         canvas = FigureCanvas(fig)
         ax = fig.add_subplot(111)
 
-        # 设置x轴范围3-14um
+        # Set x-axis range to 3-14um
         ax.set_xlim(3000, 14000)
 
-        # 分段背景着色
+        # Segmented background coloring
         ax.axvspan(3000, 5000, alpha=0.2, color='lightcoral', label='3-5 μm')
         ax.axvspan(5000, 8000, alpha=0.2, color='lightgreen', label='5-8 μm')
         ax.axvspan(8000, 14000, alpha=0.2, color='lightblue', label='8-14 μm')
@@ -1611,7 +1612,7 @@ class ResultWindow(QWidget):
                     ax.plot(wavelengths, amorphous_emiss[0], label=f"{color_key} Amorphous", linestyle='--')
                 if crystalline_emiss and len(crystalline_emiss) > 0:
                     ax.plot(wavelengths, crystalline_emiss[0], label=f"{color_key} Crystalline", linestyle='-')
-            # 字体放大
+            # Enlarge fonts
             ax.set_xlabel("Wavelength (nm)", fontsize=16)
             ax.set_ylabel("Emissivity", fontsize=16)
             ax.set_title("Infrared Emissivity Spectrum (3-14 μm)", fontsize=18)
@@ -1628,7 +1629,7 @@ class ResultWindow(QWidget):
         return tab
 
     def create_pattern_tab(self):
-        """图案选项卡：去掉Environment信息，字体放大"""
+        """Pattern tab: Environment info removed, fonts enlarged"""
         tab = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(10, 10, 10, 10)
@@ -1651,7 +1652,7 @@ class ResultWindow(QWidget):
             tab.setLayout(layout)
             return tab
 
-        # 使用子选项卡显示非晶态和晶态图案
+        # Use sub-tabs to show the amorphous and crystalline patterns
         pattern_tabs = QTabWidget()
 
         if amorphous_pattern is not None:
@@ -1664,7 +1665,7 @@ class ResultWindow(QWidget):
 
         layout.addWidget(pattern_tabs)
 
-        # 生成信息 - 去掉Environment
+        # Generation info - Environment removed
         info_group = QGroupBox("Generation Info")
         info_group.setStyleSheet("font-size: 24px; font-weight: bold;")
         info_layout = QHBoxLayout()
@@ -1684,7 +1685,7 @@ class ResultWindow(QWidget):
         return tab
 
     def create_pattern_display_tab(self, pattern_array, title):
-        """创建单个图案显示选项卡，说明字体调大"""
+        """Create a single pattern display tab with enlarged caption font"""
         tab = QWidget()
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignCenter)
@@ -1716,7 +1717,7 @@ class ResultWindow(QWidget):
         return tab
 
     def save_results(self):
-        """保存结果：用户选择目录，保存参数/光谱/双态图案/预览/汇总"""
+        """Save results: user picks a directory; saves parameters/spectra/both-state patterns/preview/summary"""
         try:
             from utils.file_handlers import save_design_results
             from utils.helpers import get_default_dir

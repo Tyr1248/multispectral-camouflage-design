@@ -1,5 +1,5 @@
 """
-配置管理功能
+Configuration management
 """
 
 import os
@@ -10,19 +10,19 @@ from PyQt5.QtCore import QSettings
 
 def load_app_config(config_file=None):
     """
-    加载应用程序配置
+    Load the application configuration.
 
-    输入:
-        config_file: str - 配置文件路径（可选）
+    Args:
+        config_file: str - path to the config file (optional)
 
-    输出:
-        dict - 应用程序配置
+    Returns:
+        dict - application configuration
     """
-    # 默认配置文件路径
+    # Default config file path
     if config_file is None:
         config_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml')
 
-    # 如果配置文件不存在，使用默认配置
+    # Fall back to the default config if the file does not exist
     if not os.path.exists(config_file):
         print(f"配置文件不存在，使用默认配置: {config_file}")
         return get_default_config()
@@ -31,7 +31,7 @@ def load_app_config(config_file=None):
         with open(config_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
 
-        # 确保必要的配置项存在
+        # Ensure required config keys exist
         default_config = get_default_config()
         for key, value in default_config.items():
             if key not in config:
@@ -47,10 +47,10 @@ def load_app_config(config_file=None):
 
 def get_default_config():
     """
-    获取默认配置
+    Get the default configuration.
 
-    输出:
-        dict - 默认配置
+    Returns:
+        dict - default configuration
     """
     return {
         'app': {
@@ -91,18 +91,18 @@ def get_default_config():
 
 def save_app_state(app_window):
     """
-    保存应用程序状态
+    Save the application state.
 
-    输入:
-        app_window: QMainWindow - 应用程序窗口对象
+    Args:
+        app_window: QMainWindow - application window object
 
-    输出:
-        bool: 是否保存成功
+    Returns:
+        bool: whether saving succeeded
     """
     try:
         settings = QSettings('国防科研单位', '智能迷彩设计系统')
 
-        # 保存窗口几何信息
+        # Save window geometry and state
         settings.setValue('geometry', app_window.saveGeometry())
         settings.setValue('windowState', app_window.saveState())
 
@@ -115,10 +115,10 @@ def save_app_state(app_window):
 
 def get_default_material_properties():
     """
-    获取默认材料属性
+    Get the default material properties.
 
-    输出:
-        dict - 默认材料属性
+    Returns:
+        dict - default material properties
     """
     return {
         'materials': {

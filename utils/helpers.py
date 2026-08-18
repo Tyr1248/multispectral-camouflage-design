@@ -1,5 +1,5 @@
 """
-辅助函数
+Helper functions
 """
 
 import os
@@ -11,19 +11,19 @@ from datetime import datetime
 
 def get_default_dir():
     """
-    文件对话框的默认目录：项目根目录（main.py 所在目录）
+    Default directory for file dialogs: the project root (where main.py lives).
 
-    无论从何处启动，打开/保存对话框都默认定位到项目自身目录，
-    避免暴露用户私人路径。
+    Open/save dialogs default to the project directory regardless of
+    where the app is launched, avoiding exposure of the user's private paths.
     """
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def get_image_dir():
     """
-    图像选择对话框的默认目录：项目根目录下的 demo_images 文件夹
+    Default directory for image selection dialogs: the demo_images folder under the project root.
 
-    专门用于存放演示/输入图像；不存在时自动创建。
+    Dedicated to demo/input images; created automatically if missing.
     """
     image_dir = os.path.join(get_default_dir(), 'demo_images')
     os.makedirs(image_dir, exist_ok=True)
@@ -32,11 +32,11 @@ def get_image_dir():
 
 def safe_flush_stdout():
     """
-    安全地刷新标准输出
+    Safely flush standard output.
 
-    在无控制台环境（如 pythonw 或 detached 进程）中，
-    sys.stdout 可能为 None 或其底层句柄已失效，
-    直接调用 flush() 会抛出 OSError/ValueError。
+    In console-less environments (e.g. pythonw or detached processes),
+    sys.stdout may be None or its underlying handle invalid,
+    so calling flush() directly can raise OSError/ValueError.
     """
     try:
         if sys.stdout is not None:
@@ -47,14 +47,14 @@ def safe_flush_stdout():
 
 def normalize_color_values(values, color_space):
     """
-    将颜色值归一化到标准范围
+    Normalize color values to their standard ranges.
 
-    输入:
-        values: list[float] - 颜色值列表
-        color_space: str - 颜色空间名称
+    Args:
+        values: list[float] - color values
+        color_space: str - color space name
 
-    输出:
-        normalized_values: list[float] - 归一化后的颜色值
+    Returns:
+        normalized_values: list[float] - normalized color values
     """
     if color_space == 'RGB':
         return values
@@ -76,20 +76,20 @@ def normalize_color_values(values, color_space):
 
 def calculate_color_distance(color1, color2, color_space='RGB'):
     """
-    计算两个颜色之间的距离
+    Compute the distance between two colors.
 
-    输入:
-        color1: tuple/list - 第一个颜色
-        color2: tuple/list - 第二个颜色
-        color_space: str - 颜色空间
+    Args:
+        color1: tuple/list - first color
+        color2: tuple/list - second color
+        color_space: str - color space
 
-    输出:
-        distance: float - 颜色距离
+    Returns:
+        distance: float - color distance
     """
     if len(color1) != 3 or len(color2) != 3:
         return float('inf')
 
-    # 欧几里得距离
+    # Euclidean distance
     if color_space == 'RGB':
         r1, g1, b1 = color1
         r2, g2, b2 = color2
@@ -106,19 +106,19 @@ def calculate_color_distance(color1, color2, color_space='RGB'):
 
 def generate_unique_filename(base_name, extension='png'):
     """
-    生成唯一的文件名
+    Generate a unique filename.
 
-    输入:
-        base_name: str - 基础文件名
-        extension: str - 文件扩展名
+    Args:
+        base_name: str - base file name
+        extension: str - file extension
 
-    输出:
-        filename: str - 唯一文件名
+    Returns:
+        filename: str - unique filename
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     random_id = random.randint(1000, 9999)
 
-    # 清理基础名称中的非法字符
+    # Strip illegal characters from the base name
     safe_base = ''.join(c for c in base_name if c.isalnum() or c in ('_', '-')).strip()
     if not safe_base:
         safe_base = 'design'
@@ -128,13 +128,13 @@ def generate_unique_filename(base_name, extension='png'):
 
 def rgb_to_hex(rgb):
     """
-    将RGB颜色转换为十六进制字符串
+    Convert an RGB color to a hex string.
 
-    输入:
-        rgb: tuple - RGB颜色值
+    Args:
+        rgb: tuple - RGB color values
 
-    输出:
-        str - 十六进制颜色代码
+    Returns:
+        str - hex color code
     """
     if len(rgb) >= 3:
         return '#{:02x}{:02x}{:02x}'.format(
@@ -145,13 +145,13 @@ def rgb_to_hex(rgb):
 
 def hex_to_rgb(hex_color):
     """
-    将十六进制颜色转换为RGB
+    Convert a hex color to RGB.
 
-    输入:
-        hex_color: str - 十六进制颜色代码
+    Args:
+        hex_color: str - hex color code
 
-    输出:
-        tuple - RGB颜色值
+    Returns:
+        tuple - RGB color values
     """
     hex_color = hex_color.lstrip('#')
     if len(hex_color) == 6:

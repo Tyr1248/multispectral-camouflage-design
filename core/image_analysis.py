@@ -1,5 +1,5 @@
 """
-图像分析功能
+Image analysis utilities
 """
 
 import random
@@ -10,20 +10,20 @@ import cv2
 
 def load_and_preprocess_image(image_path, resize_to=(800, 600)):
     """
-    加载并预处理图像
+    Load and preprocess an image
 
-    输入:
-        image_path: str - 图像路径
-        resize_to: tuple - 调整后的尺寸（可选）
+    Args:
+        image_path: str - image path
+        resize_to: tuple - target size (optional)
 
-    输出:
-        np.array - 预处理后的图像数组（RGB格式）
+    Returns:
+        np.array - preprocessed image array (RGB format)
     """
     try:
-        # 使用PIL加载图像
+        # Load the image with PIL
         img = Image.open(image_path)
 
-        # 转换为RGB（如果是RGBA）
+        # Convert to RGB (if RGBA)
         if img.mode in ('RGBA', 'LA'):
             background = Image.new('RGB', img.size, (255, 255, 255))
             background.paste(img, mask=img.split()[-1])
@@ -31,32 +31,32 @@ def load_and_preprocess_image(image_path, resize_to=(800, 600)):
         elif img.mode != 'RGB':
             img = img.convert('RGB')
 
-        # 调整尺寸
+        # Resize
         if resize_to:
             img = img.resize(resize_to, Image.Resampling.LANCZOS)
 
-        # 转换为numpy数组
+        # Convert to a numpy array
         img_array = np.array(img)
 
         return img_array
 
     except Exception as e:
         print(f"图像加载失败: {e}")
-        # 返回一个随机的测试图像
+        # Return a random test image as fallback
         return np.random.randint(0, 255, (600, 800, 3), dtype=np.uint8)
 
 
 def analyze_environment_texture(environment_image):
     """
-    分析环境纹理特征
+    Analyze environment texture features
 
-    输入:
-        environment_image: np.array - 环境图像
+    Args:
+        environment_image: np.array - environment image
 
-    输出:
-        dict - 纹理特征字典
+    Returns:
+        dict - texture feature dictionary
     """
-    # 模拟实现：返回随机纹理特征
+    # Mock implementation: return random texture features
     return {
         'color_palette': [
             (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
@@ -72,19 +72,19 @@ def analyze_environment_texture(environment_image):
 
 def calculate_color_statistics(image, mask=None):
     """
-    计算图像颜色统计特征
+    Compute color statistics of an image
 
-    输入:
-        image: np.array - 图像
-        mask: np.array - 掩码（可选）
+    Args:
+        image: np.array - image
+        mask: np.array - mask (optional)
 
-    输出:
-        dict - 统计信息字典
+    Returns:
+        dict - statistics dictionary
     """
     if image is None:
         return {}
 
-    # 如果有掩码，应用掩码
+    # Apply the mask if provided
     if mask is not None and mask.shape[:2] == image.shape[:2]:
         masked_image = image[mask > 0]
         if len(masked_image) == 0:
@@ -94,16 +94,16 @@ def calculate_color_statistics(image, mask=None):
     else:
         pixels = image.reshape(-1, 3)
 
-    # 计算统计量
+    # Compute statistics
     mean = np.mean(pixels, axis=0)
     std = np.std(pixels, axis=0)
 
-    # 计算颜色直方图
+    # Compute color histograms
     hist_red = np.histogram(pixels[:, 0], bins=32, range=(0, 255))[0]
     hist_green = np.histogram(pixels[:, 1], bins=32, range=(0, 255))[0]
     hist_blue = np.histogram(pixels[:, 2], bins=32, range=(0, 255))[0]
 
-    # 找到出现最多的颜色作为主色
+    # Find the most frequent color as the dominant color
     hist_3d, _ = np.histogramdd(pixels, bins=(8, 8, 8), range=[(0, 255), (0, 255), (0, 255)])
     max_idx = np.unravel_index(np.argmax(hist_3d), hist_3d.shape)
     dominant_color = (

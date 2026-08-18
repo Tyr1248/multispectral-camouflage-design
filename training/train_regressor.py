@@ -1,4 +1,4 @@
-# train_regressor.py — 训练一维卷积版 Lab 回归器（可选替代方案）
+# train_regressor.py — Train the 1D convolutional Lab regressor (optional alternative)
 import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -26,8 +26,7 @@ def train_epoch(model, train_loader, criterion, optimizer, device):
     for inputs, labels in train_loader:
         inputs = inputs.to(device)      # (B, 4)
         labels = labels.to(device)      # (B, 3)
-        # (B, 4) → (B, 1, 4) 以适配 Conv1d
-        inputs = inputs.unsqueeze(1)
+        inputs = inputs.unsqueeze(1)  # (B, 4) -> (B, 1, 4) to fit Conv1d
 
         optimizer.zero_grad()
         outputs = model(inputs)
@@ -58,7 +57,7 @@ def main():
 
     os.makedirs('weight', exist_ok=True)
 
-    # 加载数据（同时保存 y_mean.npy / y_std.npy 到 parameters/）
+    # Load data (also saves y_mean.npy / y_std.npy to parameters/)
     X_train, y_train, X_val, y_val = get_train_val_split("dataset.csv")
 
     train_dataset = CustomDataset(X_train, y_train)
